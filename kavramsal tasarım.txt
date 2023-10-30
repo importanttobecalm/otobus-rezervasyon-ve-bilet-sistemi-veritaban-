@@ -13,3 +13,47 @@
   12- Otobüsün yolcu sayısı özelliği ile bilet arasında kapasite ilişkisi vardır.
   13- berkan yoğurt yiyor
   14- gidişatla seferin bire bir ilişkisi var 
+
+
+Kullanıcılar (Users):
+  KullanıcıID (PK)
+  İsim
+  Şifre
+  TC No (Birincil Kimlik Numarası)
+  Telefon
+  Cinsiyet
+  Rol (örneğin, kullanıcı veya admin)
+
+Otobüsler (Buses):
+  OtobüsID (PK)
+  Plaka
+  Koltuk Sayısı
+  SeferNo (FK - Seferler tablosuna işaret eder)
+
+Biletler (Tickets):
+  BiletID (PK)
+  Fiyat
+  Tarih
+  Koltuk No
+  Saat
+  Durum (Örneğin, Satıldı veya Rezerve)
+  OtobüsID (FK - Otobüsler tablosuna işaret eder)
+  KullanıcıID (FK - Kullanıcılar tablosuna işaret eder)
+  Sefer No (FK - Seferler tablosuna işaret eder)
+
+Şehirler (Cities):
+  ŞehirID (PK)
+  Ad
+
+Seferler (Journeys):
+  SeferNo (PK)
+  Gidilecek Durak (FK - Şehirler tablosuna işaret eder)
+  Tarih
+  Son Terminal
+
+Gidişatlar (Routes):
+  GidişatID (PK)
+  Varış Noktası (FK - Şehirler tablosuna işaret eder)
+  Varış Saati
+  Kalkış Noktası (FK - Şehirler tablosuna işaret eder)
+  Kalkış Saati
