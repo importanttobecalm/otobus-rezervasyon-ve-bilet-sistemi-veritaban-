@@ -1,0 +1,15 @@
+  1 - 1 bilet 1 kullanıcıya aittir.
+  2 - 1 kullanıcının birden fazla bileti olabilir.
+  3 - Kişilerin id, isim, şifre, tc no, telefon, cinsiyet bilgileri sisteme kaydolmak zorundadır.
+  4 - Otobüslerin yolcu sayısı, plakası, koltuk sayısı, sefer no (sefer tarihini ve gidilecek durakları tanımlayacak nesne olarak kabul edilecek.), 
+  5 - Biletler bno, fiyat, tarih, koltuk no, saat bilgisine sahiptir.
+  6 - Şehirler ad bilgisine sahiptir.
+  7 - Sefer, sefer no ,gidilecek durak, tarih, son terminal
+ bilgilerine sahiptir.
+  8 - Gidişat varış noktası (saatle), kalkış noktası (saatle) özellikleri vardır.
+  9 - Bir kullanıcı birden fazla bilet alabilir.
+  10- 1 Bilet 1 sefer ve 1 kişiye aittir.
+  11- 1 sefer n bilete sahip olur, n otobüse sahip olabilir, yalnızca 1 gidişata sahip olur.
+  12- Otobüsün yolcu sayısı özelliği ile bilet arasında kapasite ilişkisi vardır.
+  13- berkan yoğurt yiyor
+  14- gidişatla seferin bire bir ilişkisi var 
