@@ -1,2 +1,2 @@
-# otobus-rezervasyon-ve-bilet-sistemi-veritaban-
+# OTOBÜS REZERVASYON ve BİLET SİSTEMİNİN VERİTABANI TASARIMININ İMPLEMANTASYON
 Otobüs firması rezervasyon ve bilet sisteminin veritabanı tasarımının implemantasyonu
