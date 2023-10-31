@@ -14,7 +14,7 @@
   13- berkan yoğurt yiyor
   14- gidişatla seferin bire bir ilişkisi var 
 
-
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Kullanıcılar (Users):
   KullanıcıID (PK)
   İsim
@@ -57,3 +57,93 @@ Gidişatlar (Routes):
   Varış Saati
   Kalkış Noktası (FK - Şehirler tablosuna işaret eder)
   Kalkış Saati
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+1- Kullanıcılar 
+sisteme kaydolmak için gerekli bilgilere sahiptir. Her kullanıcıya özgü bir Kimlik Numarası (ID) vardır.
+Kullanıcılar, isim, şifre, TC No, telefon ve cinsiyet bilgilerini içerir. Ayrıca her kullanıcının bir Rol ataması vardır (örneğin, kullanıcı veya admin).
+Otobüsler (Buses):
+
+2- Otobüsler
+plakaları, koltuk sayıları ve seferlere katılma yetenekleri ile tanımlanır. Her otobüsün benzersiz bir Otobüs Kimlik Numarası (ID) vardır.
+Otobüsler, hangi seferlere ait olduklarını göstermek için bir Sefer Numarası (SeferNo) ile ilişkilendirilir.
+Biletler (Tickets):
+
+3- Biletler
+yolculuk bilgilerini içerir ve kullanıcılar tarafından satın alınır veya rezerve edilir. Her biletin benzersiz bir Bilet Kimlik Numarası (ID) vardır.
+Biletler, fiyat, tarih, koltuk numarası, saat ve durum bilgilerini içerir. Ayrıca, hangi otobüse ait olduklarını ve hangi kullanıcı tarafından satın alındıklarını belirtir.
+Her bilet, yalnızca bir kullanıcı ve bir seferle ilişkilidir. Aynı kullanıcı birden fazla bilete sahip olabilir.
+Şehirler (Cities):
+
+4- Şehirler
+ad bilgisini içerir ve seferlerin kalkış ve varış noktalarını tanımlar.
+Seferler (Journeys):
+
+5- Seferler
+sefer numarası, tarih ve son terminal bilgilerini içerir.
+Her sefer, yalnızca bir gidişat ile ilişkilendirilir ve birden fazla bilete sahip olabilir.
+Gidişatlar (Routes):
+
+6- Gidişatlar
+otobüslerin yolcu kapasitesi ile ilişkilendirilen, varış ve kalkış noktalarını ve saatleri tanımlar.
+Her gidişat, yalnızca bir otobüse aittir ve yalnızca bir seferle ilişkilendirilir. Gidişatlar, otobüs yolcu kapasitesini belirleyen önemli bir özellik sağlar.
+
+
+Kullanıcılar (Users):
+
+KullanıcıID (PK):
+İsim
+Şifre
+TC No (Birincil Kimlik Numarası)
+Telefon
+Cinsiyet
+Rol (örneğin, kullanıcı veya admin)
+Roller (Roles):
+
+RolID (PK):
+Rol Adı (örneğin, Kullanıcı, Admin, vb.)
+Kullanıcı_Roller (UserRoles):
+
+KullanıcıRolID (PK):
+KullanıcıID (FK - Kullanıcılar tablosuna işaret eder)
+RolID (FK - Roller tablosuna işaret eder)
+Otobüsler (Buses):
+
+OtobüsID (PK):
+Plaka
+Koltuk Sayısı
+SeferNo (FK - Seferler tablosuna işaret eder)
+Biletler (Tickets):
+
+BiletID (PK):
+Fiyat
+Tarih
+Koltuk No
+Saat
+DurumID (FK - Durumlar tablosuna işaret eder)
+OtobüsID (FK - Otobüsler tablosuna işaret eder)
+KullanıcıID (FK - Kullanıcılar tablosuna işaret eder)
+SeferNo (FK - Seferler tablosuna işaret eder)
+Durumlar (Statuses):
+
+DurumID (PK):
+Durum Adı (örneğin, Satıldı, Rezerve, vb.)
+Şehirler (Cities):
+
+ŞehirID (PK):
+Ad
+Seferler (Journeys):
+
+SeferNo (PK)
+GidişatID (FK - Gidişatlar tablosunu işaret eder)
+Tarih
+Son Terminal
+Gidişatlar (Routes):
+
+GidişatID (PK)
+Varış Noktası (FK - Şehirler tablosuna işaret eder)
+Varış Saati
+Kalkış Noktası (FK - Şehirler tablosuna işaret eder)
+OtobüsID (FK - Otobüsler tablosuna işaret eder)
