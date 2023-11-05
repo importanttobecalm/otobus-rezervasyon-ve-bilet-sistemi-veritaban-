@@ -147,19 +147,3 @@ Varış Noktası (FK - Şehirler tablosuna işaret eder)
 Varış Saati
 Kalkış Noktası (FK - Şehirler tablosuna işaret eder)
 OtobüsID (FK - Otobüsler tablosuna işaret eder)
-
-
-chat gbt güncellemesi
-
-"Kullanıcı" tablosu, kişilerin bilgilerini depolar: id, isim, şifre, tc no, telefon, cinsiyet.
-"Otobüs" tablosu, otobüslerin özelliklerini saklar: yolcu sayısı, plaka, koltuk sayısı, sefer no.
-"Sefer" tablosu, otobüs seferlerini temsil eder ve sefer numarası, gidilecek duraklar, tarih, son terminal gibi bilgiler içerir.
-"Şehirler" tablosu, şehirlerin adlarını saklar.
-"Gidişat" tablosu, otobüs seferlerinin kalkış ve varış saatlerini içerir.
-"Bilet" tablosu, bilet bilgilerini depolar: bno (bilet numarası), fiyat, tarih, koltuk numarası, saat ve diğer ilgili bilgiler.
-"Kullanıcı" ve "Bilet" arasında 1-çok ilişkisi vardır, çünkü bir kullanıcı birden fazla bilet alabilir (kullanıcıların birden fazla bilet olabilir).
-"Sefer" ve "Bilet" arasında 1-çok ilişkisi vardır, çünkü bir sefer birden fazla bilete sahip olabilir (bir seferin birden fazla bileti olabilir).
-"Otobüs" ve "Bilet" arasında 1-çok ilişkisi vardır, çünkü bir otobüs birden fazla bilete sahip olabilir (bir otobüsün birden fazla bileti olabilir).
-"Gidişat" ve "Sefer" arasında 1-1 ilişkisi vardır, çünkü her seferin yalnızca bir gidişata sahip olması gerekmektedir.
-"Otobüs" ve "Sefer" arasında 1-çok ilişkisi vardır, çünkü bir sefer birden fazla otobüse sahip olabilir (bir seferin birden fazla otobüsü olabilir).
-"Otobüs" ve "Bilet" arasında bir kapasite ilişkisi vardır, çünkü otobüsün yolcu kapasitesi biletlerin koltuk sayısı ile ilişkilendirilir.
