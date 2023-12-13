@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en" class="h-100" data-bs-theme="auto">
+<head>
+    <script src="{{ url_for('static', filename='js/color-modes.js') }}"></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
+    <meta name="generator" content="Hugo 0.118.2">
+    <title>Cover Template · Bootstrap v5.3</title>
+    <link rel="canonical" href="https://getbootstrap.com/docs/5.3/examples/cover/">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@3">
+    <link href="{{ url_for('static', filename='css/bootstrap.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="d-flex h-100 text-center text-bg-dark">
+    <!-- ... (theme toggle button) ... -->
+
+    <div class="cover-container d-flex w-100 h-100 p-3 mx-auto flex-column">
+        <header class="mb-auto">
+            <div>
+                <h3 class="float-md-start mb-0">VTYS--Bilet</h3>
+                <nav class="nav nav-masthead justify-content-center float-md-end">
+                    <a class="nav-link fw-bold py-1 px-0" aria-current="page" href="index.html">Anasayfa</a>
+                    <a class="nav-link fw-bold py-1 px-0" href="biletlerim.html">Biletlerim</a>
+                    <a class="nav-link fw-bold py-1 px-0 active" href="giris.html">Giriş Yap</a>
+                    <p class="nav-link fw-bold py-1 px-0">/</p>
+                    <a class="nav-link fw-bold py-1 px-0" href="kayitOl.html">register</a>
+                </nav>
+            </div>
+        </header>
+
+        <main>
+            <h4 style="text-align: left;">GIRIS</h4>
+
+            <div>
+              <form action="/login" method="post">
+                <div class="mb-3">
+                    <label for="exampleInputEmail1" class="form-label float-md-start">user name</label>
+                    <input type="text" class="form-control" id="exampleInputEmail1" name="exampleInputEmail1" aria-describedby="emailHelp">
+                </div>
+                <div class="mb-3">
+                    <label for="exampleInputPassword1" class="form-label float-md-start">Parola</label>
+                    <input type="password" class="form-control" id="exampleInputPassword1" name="exampleInputPassword1">
+                </div>
+                <div class="mb-3">
+                    <button type="submit" class="btn btn-warning">Giriş Yap</button>
+                    <a href="kayitOl.html" class="btn btn-warning">register</a>
+                </div>
+            </form>
+            </div>
+        </main>
+
+        <footer class="mt-auto text-white-50">
+            <p></p>
+        </footer>
+    </div>
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+</body>
+</html>
