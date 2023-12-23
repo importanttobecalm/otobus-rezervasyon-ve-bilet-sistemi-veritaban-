@@ -72,34 +72,27 @@ BEGIN
 )END
 """
 
-create_voyage_route_trigger = """
-IF NOT EXISTS (SELECT * FROM sys.triggers WHERE name = 'tr_voyage_route_insert')
-BEGIN
-    EXEC('
-    CREATE TRIGGER tr_voyage_route_insert
-    ON voyage_route
-    AFTER INSERT
-    AS
-    BEGIN
-        UPDATE vr
-        SET sequenceOrder = vr.sequenceOrder + 1
-        FROM voyage_route vr
-        INNER JOIN inserted i ON vr.voyageRouteID = i.voyageRouteID;
-    END
-    ');
-END;
-"""
-
 createBusTableSTR = """
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'bus')
 BEGIN
    CREATE TABLE bus (
        busID smallint PRIMARY KEY IDENTITY,
-       voyageRouteID smallint FOREIGN KEY REFERENCES voyage_route(voyageRouteID),
+       voyageID tinyint FOREIGN KEY REFERENCES voyage(voyageID),
        plate VARCHAR(10),
-       seat VARCHAR(38) DEFAULT REPLICATE('0', 38),
+       seat VARCHAR(10) DEFAULT REPLICATE('0', 10),
        platformno tinyint DEFAULT 0,
-       currentCity tinyint FOREIGN KEY REFERENCES city(cityID)
+       currentvoyageRoute smallint FOREIGN KEY REFERENCES voyage_route(voyageRouteID)
+   )
+END"""
+
+createBusSeatTableSTR = """
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'bus_seat')
+BEGIN
+   CREATE TABLE bus_seat (
+       busSeatID smallint PRIMARY KEY IDENTITY,
+       busID smallint FOREIGN KEY REFERENCES bus(busID),
+       seat VARCHAR(10) DEFAULT REPLICATE('0', 10),
+       reservedvoyageRoute smallint
    )
 END"""
 
@@ -127,6 +120,54 @@ BEGIN
         ticketDate DATETIME DEFAULT GETDATE()
     )
 END"""
+
+#------------------------#
+createVoyageRouteTriggerSTR = """
+IF NOT EXISTS (SELECT * FROM sys.triggers WHERE name = 'tr_voyage_route_insert')
+BEGIN
+    EXEC('
+    CREATE TRIGGER tr_voyage_route_insert
+    ON voyage_route
+    AFTER INSERT
+    AS
+    BEGIN
+        UPDATE vr
+        SET sequenceOrder = vr.sequenceOrder + 1
+        FROM voyage_route vr
+        INNER JOIN inserted i ON vr.voyageRouteID = i.voyageRouteID;
+    END
+    ');
+END;
+"""
+#------------------------#
+createSPAssignVoyageToBusAndCreateSeatsSTR = """
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'AssignVoyageToBusAndCreateSeats')
+Begin
+    EXEC('
+    CREATE PROCEDURE AssignVoyageToBusAndCreateSeats
+    @busID smallint,
+    @voyageID tinyint
+AS
+BEGIN
+    UPDATE bus
+    SET voyageID = @voyageID
+    WHERE busID = @busID;
+
+    -- Get the voyageRouteIDs associated with the voyage
+    DECLARE @voyageRouteIDs TABLE (voyageRouteID smallint);
+
+    INSERT INTO @voyageRouteIDs (voyageRouteID)
+    SELECT voyageRouteID
+    FROM voyage_route
+    WHERE voyageID = @voyageID;
+
+    -- Create seats for each voyageRoute
+    INSERT INTO bus_seat (busID, seat, reservedvoyageRoute)
+    SELECT @busID, REPLICATE(''0'', 10), voyageRouteID
+    FROM @voyageRouteIDs;
+END
+    ');
+END;"""
 
 #------------------------#
 
@@ -161,8 +202,8 @@ SELECT ?, ?, ?
 """
 
 insertBus = """
-INSERT INTO bus (voyageRouteID, plate, seat, platformno, currentCity)
-SELECT ?, ?, REPLICATE('0', 38), ?, ?
+INSERT INTO bus (voyageID, plate, platformno, currentvoyageRoute)
+SELECT ?, ?, ?, ?
 """
 
 insertPrice = """
@@ -189,11 +230,17 @@ checkRegister = """SELECT * FROM customer WHERE tc = ? OR email = ? OR phone = ?
 
 checkLogin = """SELECT * FROM customer WHERE email = ? AND password = ?"""
 
+#------------------------#
+
+
+
 class BusCompanyDB:
     def __init__(self) -> None:
         self.con = pyodbc.connect(connStr)
         self.cur = self.con.cursor()
         self.create_tables()
+        self.create_triggers()
+        self.create_stored_procedures()
 
     def create_tables(self):
         self.cur.execute(createCustomerRoleTableSTR)
@@ -202,11 +249,16 @@ class BusCompanyDB:
         self.cur.execute(createRouteTableSTR)
         self.cur.execute(createVoyageTableSTR)
         self.cur.execute(createVoyageRouteTableSTR)
-        self.cur.execute(create_voyage_route_trigger)
         self.cur.execute(createBusTableSTR)
+        self.cur.execute(createBusSeatTableSTR)
         self.cur.execute(createPriceTableSTR)
         self.cur.execute(createTicketTableSTR)
 
+    def create_triggers(self):
+        self.cur.execute(createVoyageRouteTriggerSTR)
+    
+    def create_stored_procedures(self):
+        self.cur.execute(createSPAssignVoyageToBusAndCreateSeatsSTR)
     #------------------------#
 
     def insert_customer_role(self, customer_role):
@@ -225,10 +277,10 @@ class BusCompanyDB:
         self.cur.execute(insertVoyage, (voyageDate, startTime, voyageDate))
 
     def insert_voyage_route(self, voyageID, routeID, seq):
-        self.cur.execute(insertVoyageRoute, (voyageID, routeID. seq))
+        self.cur.execute(insertVoyageRoute, (voyageID, routeID, seq))
 
-    def insert_bus(self, voyageRouteID, plate, platformno, currentCity):
-        self.cur.execute(insertBus, (voyageRouteID, plate, platformno, currentCity))
+    def insert_bus(self, voyageRouteID, plate, platformno, currentvoyageRoute):
+        self.cur.execute(insertBus, (voyageRouteID, plate, platformno, currentvoyageRoute))
 
     def insert_price(self, firstCity, secondCity, price):
         self.cur.execute(insertPrice, (firstCity, secondCity, price))
@@ -254,23 +306,124 @@ class BusCompanyDB:
 
     def get_cities(self):
         return self.cur.execute("SELECT cityName FROM city").fetchall()
+    
+    def get_suitable_buses(self, from_location, to_location, date):
+        # Convert the date string to a datetime object
+        date = datetime.strptime(date, '%Y-%m-%d').date()
+
+        # Select buses that have a voyage on the specified date
+        query = """
+            SELECT b.busID
+            FROM bus b
+            JOIN voyage v ON b.voyageID = v.voyageID
+            JOIN voyage_route vr_from ON v.voyageID = vr_from.voyageID
+            JOIN voyage_route vr_to ON v.voyageID = vr_to.voyageID
+            JOIN route r_from ON vr_from.routeID = r_from.routeID
+            JOIN route r_to ON vr_to.routeID = r_to.routeID
+            WHERE r_from.departure = (SELECT cityID FROM city WHERE cityName = ?)
+                AND r_to.arrival = (SELECT cityID FROM city WHERE cityName = ?)
+                AND v.voyageDate = ?
+            ORDER BY vr_from.sequenceOrder;
+        """
+        # Execute the query with parameters
+        result = self.cur.execute(query, (from_location, to_location, date)).fetchall()
+        return result
+
+    def get_price_info(self, from_location, to_location):
+        # Select price information based on the given locations (both directions)
+        query = """
+            SELECT price
+            FROM price
+            WHERE (firstCity = (SELECT cityID FROM city WHERE cityName = ?) AND secondCity = (SELECT cityID FROM city WHERE cityName = ?))
+               OR (firstCity = (SELECT cityID FROM city WHERE cityName = ?) AND secondCity = (SELECT cityID FROM city WHERE cityName = ?));
+        """
+
+        # Execute the query with parameters
+        result = self.cur.execute(query, (from_location, to_location, to_location, from_location)).fetchone()
+
+        # Process the result or return it as needed
+        return result
+    
+    def get_customer_accompanying_seqs(self, from_location, to_location, bus_id):
+        sequences = []
+        # Find the voyage_id for the specified bus
+        query_voyage = """
+            SELECT v.voyageID
+            FROM bus b
+            JOIN voyage v ON b.voyageID = v.voyageID
+            WHERE b.busID = ?
+        """
+
+        # Execute the query with parameters
+        voyage_id_result = self.cur.execute(query_voyage, (bus_id,)).fetchone()
+
+        if not voyage_id_result:
+            print("Bus information not found.")
+            return None
+
+        voyage_id = voyage_id_result[0]
+
+        # Get the sequence orders for the specified route
+        query_sequence_orders = """
+            SELECT vr.sequenceOrder
+        FROM voyage_route vr
+        JOIN route r_from ON vr.routeID = r_from.routeID
+        JOIN city c_from ON r_from.departure = c_from.cityID
+        WHERE vr.voyageID = ?
+            AND c_from.cityName = ?
+        ORDER BY vr.sequenceOrder;
+
+
+        """
+
+        # Execute the query with parameters
+        sequence_orders = self.cur.execute(query_sequence_orders, (voyage_id, from_location)).fetchone()
+        sequences.append(sequence_orders)
+
+        query_sequence_orders = """
+            SELECT vr.sequenceOrder
+            FROM voyage_route vr
+            JOIN route r_to ON vr.routeID = r_to.routeID
+            JOIN city c_to ON r_to.arrival = c_to.cityID
+            WHERE vr.voyageID = (SELECT b.voyageID
+                                FROM bus b
+                                JOIN voyage v ON b.voyageID = v.voyageID
+                                WHERE b.busID = ?)
+                AND c_to.cityName = ?
+            ORDER BY vr.sequenceOrder;
+
+
+
+        """
+
+        # Execute the query with parameters
+        sequence_orders = self.cur.execute(query_sequence_orders, (voyage_id, to_location)).fetchone()
+        sequences.append(sequence_orders)
+
+        if not sequence_orders:
+            print("Route information not found.")
+            return None
+
+        return sequences
+
+
 
 
 bc = BusCompanyDB()
 bc.cur.commit()
 def get_customer_role():
-    customer_role = input("Enter customer role: ")
+    customer_role = 'normal'
     bc.insert_customer_role(customer_role)
     bc.cur.commit()
 
 def get_customer():
-    tc = input("Enter TC: ")
-    name = input("Enter name: ")
-    surname = input("Enter surname: ")
-    email = input("Enter email: ")
-    password = input("Enter password: ")
-    phone = input("Enter phone: ")
-    customerRoleID = input("Enter customer role ID: ")
+    tc = 1
+    name = 1
+    surname = 1
+    email = 1
+    password = 1
+    phone = 1
+    customerRoleID = 1
     bc.insert_customer(tc, name, surname, email, password, phone, customerRoleID)
     bc.cur.commit()
 
@@ -297,7 +450,7 @@ def get_voyage_route():
     bc.cur.commit()
 
 def get_bus():
-    voyageRouteID = 1
+    voyageRouteID = None
     plate = '123'
     platformno = '1'
     currentCity = '1'
@@ -305,9 +458,9 @@ def get_bus():
     bc.cur.commit()
 
 def get_price():
-    firstCity = input("Enter first city: ")
-    secondCity = input("Enter second city: ")
-    price = input("Enter price: ")
+    firstCity = 1
+    secondCity = 2
+    price = 250
     bc.insert_price(firstCity, secondCity, price)
     bc.cur.commit()
 
@@ -357,8 +510,8 @@ def create_voyage():
     bc.cur.commit()
 
 def create_voyage_route():
-    for i in range(1,5):
-        voyage_id = 1
+    for i in range(3,5):
+        voyage_id = 2
         route_id = i
         sequence_order = bc.cur.execute("SELECT MAX(sequenceOrder) FROM voyage_route WHERE voyageID = ?", (voyage_id,)).fetchone()[0]
         seq = sequence_order if sequence_order != None else 0
@@ -372,12 +525,20 @@ def get_city(city_names):
         bc.cur.commit()
 
 
+def sp_assign_voyage_to_bus_and_create_seats(bus_id, voyage_id):
+    bc.cur.execute("EXEC AssignVoyageToBusAndCreateSeats ?, ?", (bus_id, voyage_id))
+    bc.cur.commit()
+
 
 if __name__ == "__main__":
-    city_names_to_insert = ["City1", "City2", "City3", "City4", "City5"]
-    get_city(city_names_to_insert)
-    get_route()
-    create_voyage()
-    create_voyage_route()
-    get_bus()
+    # get_customer_role()
+    # get_customer()
+    # city_names_to_insert = ["City1", "City2", "City3", "City4", "City5"]
+    # get_city(city_names_to_insert)
+    # get_route()
+    # create_voyage()
+    # create_voyage_route()
+    # get_bus()
+    # sp_assign_voyage_to_bus_and_create_seats(5, 2)
+    get_price()
     pass

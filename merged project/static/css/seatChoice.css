@@ -82,3 +82,9 @@ body
       .bd-mode-toggle .dropdown-menu .active .bi {
         display: block !important;
       }
+
+/* Add this to seatChoice.css */
+.btn-selected {
+  background-color: #28a745 !important; /* Green color - you can customize this */
+  color: #fff !important; /* Text color for selected button */
+}

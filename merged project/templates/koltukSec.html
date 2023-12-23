@@ -21,6 +21,44 @@
     <link href="{{ url_for('static', filename='css/cover.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/seatChoice.css') }}" rel="stylesheet">
 
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+          var buttons = document.querySelectorAll('.btn');
+          var chosenSeatsInput = document.getElementById('chosen_seats');
+  
+          // Check if the input field already has a value and initialize the selected seats array
+          var selectedSeats = chosenSeatsInput.value ? chosenSeatsInput.value.split(',') : [];
+  
+          buttons.forEach(function (button) {
+              button.addEventListener('click', function () {
+                  // Check if the clicked button is the "Book Seat" button
+                  if (!this.classList.contains('book-seat-btn')) {
+                      // Toggle the 'btn-selected' class when a button is clicked
+                      this.classList.toggle('btn-selected');
+  
+                      // Get the seat number from the button's data-seat attribute
+                      var seatNumber = this.innerText.trim();
+  
+                      // Check if the seat is already selected
+                      var index = selectedSeats.indexOf(seatNumber);
+  
+                      if (index === -1) {
+                          // If not selected, add to the array
+                          selectedSeats.push(seatNumber);
+                      } else {
+                          // If selected, remove from the array
+                          selectedSeats.splice(index, 1);
+                      }
+  
+                      // Update the chosenSeats input value with the comma-separated string
+                      chosenSeatsInput.value = selectedSeats.join(',');
+                  }
+              });
+          });
+      });
+  </script>
+  
+  
   </head>
   <body class="d-flex h-100 text-center text-bg-dark">
     <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
@@ -90,25 +128,32 @@
   </header>
 
   <main>
-    <h4 style="text-align: start;">KOLTUK SEÇİMİ</h4>
-    <div class="container-xl p-5" style="background-color: white; border-radius: 5%;">
-        <form action="">
-            <div class="row">
-                <div class="col"><button type="button" class="btn btn-warning p-3 m-2">1</button></div>
-                <div class="col"><button type="button" class="btn btn-warning p-3 p-xs-0">2</button></div>
-                <div class="col"><button type="button" class="btn btn-warning p-3 p-xs-0">3</button></div>
-                <div class="col"><button type="button" class="btn btn-warning p-3 p-xs-0">4</button></div>
-                <div class="col"><button type="button" class="btn btn-warning p-3 p-xs-0">5</button></div>
-            </div>
-            <div class="row">
-                <div class="col"><button type="button" class="btn btn-warning p-3">6</button></div>
-                <div class="col"><button type="button" class="btn btn-warning p-3">7</button></div>
-                <div class="col"><button type="button" class="btn btn-warning p-3">8</button></div>
-                <div class="col"><button type="button" class="btn btn-warning p-3">9</button></div>
-                <div class="col"><button type="button" class="btn btn-warning p-3">10</button></div>
-            </div>
-        </form>
-    </div>
+      <div class="container mt-5">
+        <h2 class="mb-4">Select Your Seat</h2>
+        
+        <form action="/seatChoice" method="post">
+          <input type="hidden" name="chosen_seats" id="chosen_seats">
+
+            {% set total_rows = 2 %}
+            {% set seats_per_row = 5 %}
+    
+            {% for row in range(1, total_rows + 1) %}
+                <div class="row">
+                    {% for seat in range(1, seats_per_row + 1) %}
+                        <div class="col">
+                            {% set seat_number = (row - 1) * seats_per_row + seat %}
+                            {% set is_seat_available = seat_number in available_seats %}
+    
+                            <button type="button" class="btn {% if is_seat_available %}btn-warning{% else %}btn-secondary disabled{% endif %} p-3 m-2">
+                                {{ seat_number }}
+                            </button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary mt-3 book-seat-btn">Book Seat</button>
+          </form>
+      </div>
   </main>
 
   <footer class="mt-auto text-white-50">
@@ -116,6 +161,9 @@
   </footer>
 </div>
 <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
     </body>
 </html>
