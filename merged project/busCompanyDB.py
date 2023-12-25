@@ -285,8 +285,17 @@ class BusCompanyDB:
     def insert_price(self, firstCity, secondCity, price):
         self.cur.execute(insertPrice, (firstCity, secondCity, price))
 
-    def create_ticket(self, busID, priceID, gender, seat, ticketDate):
-        self.cur.execute(createTicket, (busID, priceID, gender, seat, ticketDate))
+    #------------------------#
+        
+    def create_ticket(self, tc, busID, priceID, seat, ticketDate):
+        ticketDate = datetime.strptime(ticketDate, '%Y-%m-%d').date()
+        print(tc)
+        print(busID)
+        print(priceID)
+        print(seat)
+        print(ticketDate)
+        self.cur.execute(createTicket, (tc ,busID, priceID,'M', seat, ticketDate))
+        self.cur.commit()
 
     #------------------------#
 
@@ -304,8 +313,19 @@ class BusCompanyDB:
 
     #------------------------#
 
+    def get_tc_with_email(self, email):
+        return self.cur.execute("SELECT tc FROM customer WHERE email = ?", (email,)).fetchone()[0]
+
     def get_cities(self):
         return self.cur.execute("SELECT cityName FROM city").fetchall()
+    
+    def get_customer_tickets(self, tc):
+        print('tc:')
+        print(tc)
+        return self.cur.execute("SELECT * FROM ticket WHERE tc = ?", (tc,)).fetchall()
+    
+    def get_customer_name(self, tc):
+        return self.cur.execute("SELECT name FROM customer WHERE tc = ?", (tc,)).fetchone()[0]
     
     def get_suitable_buses(self, from_location, to_location, date):
         # Convert the date string to a datetime object
@@ -344,6 +364,21 @@ class BusCompanyDB:
         # Process the result or return it as needed
         return result
     
+    def get_price_id(self, from_location, to_location):
+        # Select price information based on the given locations (both directions)
+        query = """
+            SELECT priceID
+            FROM price
+            WHERE (firstCity = (SELECT cityID FROM city WHERE cityName = ?) AND secondCity = (SELECT cityID FROM city WHERE cityName = ?))
+               OR (firstCity = (SELECT cityID FROM city WHERE cityName = ?) AND secondCity = (SELECT cityID FROM city WHERE cityName = ?));
+        """
+
+        # Execute the query with parameters
+        result = self.cur.execute(query, (from_location, to_location, to_location, from_location)).fetchone()
+
+        # Process the result or return it as needed
+        return result
+
     def get_customer_accompanying_seqs(self, from_location, to_location, bus_id):
         sequences = []
         # Find the voyage_id for the specified bus
@@ -405,6 +440,50 @@ class BusCompanyDB:
             return None
 
         return sequences
+    
+    def set_reserved_seat(self, reservedSequence, reservedSeat, bus_id):
+        getOldSeatLayout = """
+            SELECT seat
+            FROM bus_seat
+            WHERE busID = ? AND reservedvoyageRoute = ?
+        """
+
+        oldLayout = bc.cur.execute(getOldSeatLayout, (bus_id, reservedSequence)).fetchone()[0]
+        newLayout = ""
+        for i in range(0, len(oldLayout)):
+            if i == int(reservedSeat):
+                newLayout += "1"
+            else:
+                newLayout += oldLayout[i]
+        
+        updateSeatLayout = """
+            UPDATE bus_seat
+            SET seat = ?
+            WHERE busID = ? AND reservedvoyageRoute = ?
+        """
+        bc.cur.execute(updateSeatLayout, (newLayout, bus_id, reservedSequence))
+
+        bc.cur.commit()
+    
+    def get_reserved_seats(self, bus_id, sequences):
+
+        seats = []
+        getReservedSeats = """
+            SELECT seat
+            FROM bus_seat
+            WHERE busID = ? AND reservedvoyageRoute = ?
+        """
+        for seq in sequences:
+            seats.append(bc.cur.execute(getReservedSeats, (bus_id, seq)).fetchone()[0])
+
+        reservedSeats = []
+        for seat in seats:
+            for i in range(0, len(seat)):
+                if seat[i] == "1" and i not in reservedSeats:
+                    reservedSeats.append(i)
+
+        return reservedSeats
+            
 
 
 
@@ -467,10 +546,9 @@ def get_price():
 def get_ticket():
     busID = input("Enter bus ID: ")
     priceID = input("Enter price ID: ")
-    gender = input("Enter gender: ")
     seat = input("Enter seat: ")
     ticketDate = input("Enter ticket date: ")
-    bc.create_ticket(busID, priceID, gender, seat, ticketDate)
+    bc.create_ticket(busID, priceID, seat, ticketDate)
     bc.cur.commit()
 
 
@@ -540,5 +618,7 @@ if __name__ == "__main__":
     # create_voyage_route()
     # get_bus()
     # sp_assign_voyage_to_bus_and_create_seats(5, 2)
-    get_price()
+    # print(bc.get_customer_name('1'))
+    # print(bc.get_customer_name(bc.get_tc_with_email(1)))
+    print(bc.get_customer_tickets(1))
     pass

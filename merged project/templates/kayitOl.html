@@ -81,7 +81,6 @@
       <h3 class="float-md-start mb-0">VTYS<>Bilet</h3>
       <nav class="nav nav-masthead justify-content-center float-md-end">
         <a class="nav-link fw-bold py-1 px-0 " aria-current="page" href="index.html">Anasayfa</a>
-        <a class="nav-link fw-bold py-1 px-0" href="biletlerim.html">Biletlerim</a>
         <a class="nav-link fw-bold py-1 px-0" href="giris.html">Giriş Yap</a>
         <p class="nav-link fw-bold py-1 px-0"">/</p>
         <a class="nav-link fw-bold py-1 px-0 active" href="kayitOl.html">Kayıt Ol</a>
@@ -100,27 +99,27 @@
         <form action="/register" method="post">
     <div class="mb-3">
         <label for="tcno" class="form-label float-md-start">T.C. Numarası</label>
-        <input type="text" class="form-control" id="tcno" name="tcno" aria-describedby="tcno">
+        <input type="text" class="form-control" id="tcno" name="tcno" aria-describedby="tcno" required>
     </div>
     <div class="mb-3">
         <label for="name" class="form-label float-md-start">İsim</label>
-        <input type="text" class="form-control" id="name" name="name">
+        <input type="text" class="form-control" id="name" name="name" required>
     </div>
     <div class="mb-3">
         <label for="surname" class="form-label float-md-start">Soyisim</label>
-        <input type="text" class="form-control" id="surname" name="surname">
+        <input type="text" class="form-control" id="surname" name="surname" required>
     </div>
     <div class="mb-3">
         <label for="email" class="form-label float-md-start">Email</label>
-        <input type="text" class="form-control" id="email" name="email">
+        <input type="text" class="form-control" id="email" name="email" required>
     </div>
     <div class="mb-3">
         <label for="password" class="form-label float-md-start">Parola</label>
-        <input type="password" class="form-control" id="password" name="password">
+        <input type="password" class="form-control" id="password" name="password" required>
     </div>
     <div class="mb-3">
         <label for="phone" class="form-label float-md-start">Telefon</label>
-        <input type="text" class="form-control" id="phone" name="phone">
+        <input type="text" class="form-control" id="phone" name="phone" required>
     </div>
     <div class="mb-3">
         <button type="submit" class="btn btn-warning">Kayıt Ol</button>

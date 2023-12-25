@@ -1,0 +1,3 @@
+x = ''.split(',')
+
+print(x)

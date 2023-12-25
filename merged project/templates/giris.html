@@ -77,16 +77,24 @@
 <div class="cover-container d-flex w-100 h-100 p-3 mx-auto flex-column">
   <header class="mb-auto">
     <div>
-      <h3 class="float-md-start mb-0">VTYS<>Bilet</h3>
-      <nav class="nav nav-masthead justify-content-center float-md-end">
-        <a class="nav-link fw-bold py-1 px-0 " aria-current="page" href="index.html">Home</a>
-        <a class="nav-link fw-bold py-1 px-0" href="biletlerim.html">My tickets</a>
-        <a class="nav-link fw-bold py-1 px-0 active" href="giris.html">Login</a>
-        <p class="nav-link fw-bold py-1 px-0">/</p>
-        <a class="nav-link fw-bold py-1 px-0" href="kayitOl.html">Register</a>
-      </nav>
+        <h3 class="float-md-start mb-0">VTYS<>Bilet</h3>
+        <nav class="nav nav-masthead justify-content-center float-md-end">
+            <a class="nav-link fw-bold py-1 px-0" aria-current="page" href="index.html">Anasayfa</a>
+            
+            {% if user_is_authenticated %}
+                <!-- Displayed when user is logged in -->
+                <a class="nav-link fw-bold py-1 px-0" href="biletlerim.html">Biletlerim</a>
+                <span class="nav-link fw-bold py-1 px-0">Welcome, {{ user_name }}</span>
+                <a class="nav-link fw-bold py-1 px-0" href="logout.html">Logout</a>
+            {% else %}
+                <!-- Displayed when user is not logged in -->
+                <a class="nav-link fw-bold py-1 px-0 active" href="giris.html">Giriş Yap</a>
+                <p class="nav-link fw-bold py-1 px-0">/</p>
+                <a class="nav-link fw-bold py-1 px-0" href="kayitOl.html">Kayıt Ol</a>
+            {% endif %}
+        </nav>
     </div>
-  </header>
+</header>
 
   <main>
     <h4 style="text-align: left;">LOGIN</h4>
@@ -99,16 +107,15 @@
         <form action="/login" method="post">
             <div class="mb-3">
               <label for="exampleInputEmail1" class="form-label float-md-start">Email</label>
-              <input type="text" class="form-control" id="exampleInputEmail1" name="exampleInputEmail1" aria-describedby="emailHelp">
+              <input type="text" class="form-control" id="exampleInputEmail1" name="exampleInputEmail1" aria-describedby="emailHelp" required>
             </div>
             <div class="mb-3">
               <label for="exampleInputPassword1" class="form-label float-md-start">Password</label>
-              <input type="password" class="form-control" id="exampleInputPassword1" name="exampleInputPassword1">
+              <input type="password" class="form-control" id="exampleInputPassword1" name="exampleInputPassword1" required>
             </div>
             <div class="mb-3">
                 <button type="submit" class="btn btn-warning">Login</button>
                 <a href="kayitOl.html" class="btn btn-warning">Register</a>
-
             </div>
           </form>
     </div>

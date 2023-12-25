@@ -130,7 +130,11 @@
   <main>
       <div class="container mt-5">
         <h2 class="mb-4">Select Your Seat</h2>
-        
+        {% if error_message %}
+        <div class="alert alert-danger" role="alert">
+            {{ error_message }}
+        </div>
+        {% endif %}
         <form action="/seatChoice" method="post">
           <input type="hidden" name="chosen_seats" id="chosen_seats">
 
@@ -142,9 +146,9 @@
                     {% for seat in range(1, seats_per_row + 1) %}
                         <div class="col">
                             {% set seat_number = (row - 1) * seats_per_row + seat %}
-                            {% set is_seat_available = seat_number in available_seats %}
+                            {% set is_seat_available = seat_number in reservedSeats %}
     
-                            <button type="button" class="btn {% if is_seat_available %}btn-warning{% else %}btn-secondary disabled{% endif %} p-3 m-2">
+                            <button type="button" class="btn {% if not is_seat_available %}btn-warning{% else %}btn-secondary disabled{% endif %} p-3 m-2">
                                 {{ seat_number }}
                             </button>
                         </div>

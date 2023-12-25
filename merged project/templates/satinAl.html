@@ -92,26 +92,27 @@
   <main>
     <div >
         <form action="/purchase" method="post">
-            <div class="mb-3">
+          <div class="mb-3">
               <label for="exampleInputEmail1" class="form-label float-md-start">Kart Sahibinin Adı</label>
-              <input type="text" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Onur YILDIZ">
-            </div>
-            <div class="mb-3">
-                <label for="exampleInputKartNo" class="form-label float-md-start">Kart No</label>
-                <input type="text" class="form-control" id="exampleInputPassword1" placeholder="1111 1111 1111 1111">
-            </div>
-            <div class="mb-3">
+              <input type="text" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Onur YILDIZ" required>
+          </div>
+          <div class="mb-3">
+              <label for="exampleInputKartNo" class="form-label float-md-start">Kart No</label>
+              <input type="text" class="form-control" id="exampleInputPassword1" placeholder="1111 1111 1111 1111" required>
+          </div>
+          <div class="mb-3">
               <label for="exampleInputCV" class="form-label float-md-start">CVV</label>
-              <input type="text" class="form-control" id="exampleInputPassword1" placeholder="999">
-            </div>
-            <div class="mb-3">
-                <label for="exampleInputSKT" class="form-label float-md-start">SKT</label>
-                <input type="text" class="form-control" id="exampleInputPassword1" placeholder="01/23">
-            </div>
-            <div class="mb-3" style="text-align: right;">
-                <button type="submit" class="btn btn-warning">Satin Al</button>
-            </div>
-        </form>
+              <input type="text" class="form-control" id="exampleInputPassword1" placeholder="999" required>
+          </div>
+          <div class="mb-3">
+              <label for="exampleInputSKT" class="form-label float-md-start">SKT</label>
+              <input type="text" class="form-control" id="exampleInputPassword1" placeholder="01/23" required>
+          </div>
+          <div class="mb-3" style="text-align: right;">
+              <button type="submit" class="btn btn-warning">Purchase</button>
+          </div>
+      </form>
+    
     </div>
   </main>
 

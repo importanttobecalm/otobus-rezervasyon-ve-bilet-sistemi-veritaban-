@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        header {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 1em;
+        }
+
+        nav {
+            background-color: #555;
+            color: white;
+            padding: 1em;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin-right: 1em;
+        }
+
+        .main-panel {
+            padding: 20px;
+            margin: 20px;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .action-panel {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Admin Panel</h1>
+    </header>
+
+    <nav>
+        <a href="#" onclick="showPanel('main')">Main Panel</a>
+        <a href="#" onclick="showPanel('action1')">Action 1</a>
+        <a href="#" onclick="showPanel('action2')">Action 2</a>
+        <a href="#" onclick="showPanel('action3')">Action 3</a>
+        <!-- Add more links for additional actions -->
+    </nav>
+
+    <div id="main-panel" class="main-panel">
+        <h1>Admin Panel</h1>
+    </div>
+
+    <div id="action1-panel" class="action-panel">
+        <h2>Customer List</h2>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Customer ID</th>
+                    <th>TC</th>
+                    <th>Name</th>
+                    <th>Surname</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in customers %}
+                <tr>
+                    <td>{{ customer.customerRoleID }}</td>
+                    <td>{{ customer.tc }}</td>
+                    <td>{{ customer.name }}</td>
+                    <td>{{ customer.surname }}</td>
+                    <td>{{ customer.email }}</td>
+                    <td>{{ customer.phone }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('delete_customer', tc=customer.tc) }}">
+                            <button type="submit">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <h2>Ticket List</h2>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Ticket ID</th>
+                    <th>Customer TC</th>
+                    <th>Bus ID</th>
+                    <th>Price ID</th>
+                    <th>Gender</th>
+                    <th>Seat</th>
+                    <th>Ticket Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ticket in tickets %}
+                <tr>
+                    <td>{{ ticket.ticketID }}</td>
+                    <td>{{ ticket.tc }}</td>
+                    <td>{{ ticket.busID }}</td>
+                    <td>{{ ticket.priceID }}</td>
+                    <td>{{ ticket.gender }}</td>
+                    <td>{{ ticket.seat }}</td>
+                    <td>{{ ticket.ticketDate }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('delete_ticket', ticketID=ticket.ticketID) }}">
+                            <button type="submit">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+    </div>
+
+    <div id="action2-panel" class="action-panel">
+        <h2>Input Page</h2>
+
+    <!-- Input Form in the Middle -->
+    <div style="display: flex; justify-content: center;">
+        <form method="post" action="{{ url_for('assign_bus_to_voyage') }}">
+            <label for="bus_id">Bus ID:</label>
+            <input type="text" name="bus_id" required>
+
+            <label for="voyage_id">Voyage ID:</label>
+            <input type="text" name="voyage_id" required>
+
+            <button type="submit">Assign Bus to Voyage</button>
+        </form>
+    </div>
+
+    <!-- Bus Table on the Left -->
+    <div style="float: left; width: 20%;">
+        <h3>Bus Table</h3>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Bus ID</th>
+                    <th>voyageID</th>
+                    <th>Platform No</th>
+                    <th>Current Voyage Route</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bus in buses %}
+                <tr>
+                    <td>{{ bus.busID }}</td>
+                    <td>{{ bus.voyageID }}</td>
+                    <td>{{ bus.platformno }}</td>
+                    <td>{{ bus.currentvoyageRoute }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Voyage Table on the Right -->
+    <div style="float: right; width: 20%;">
+        <h3>Voyage Table</h3>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Voyage ID</th>
+                    <th>Voyage Date</th>
+                    <th>Start Time</th>
+                    <th>Voyage Name</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for voyage in voyages %}
+                <tr>
+                    <td>{{ voyage.voyageID }}</td>
+                    <td>{{ voyage.voyageDate }}</td>
+                    <td>{{ voyage.startTime }}</td>
+                    <td>{{ voyage.voyageName }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    </div>
+
+    <div id="action3-panel" class="action-panel">
+        <h2>Panel 3</h2>
+
+    <!-- Input Form above Tables -->
+    <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+        <form method="post" action="{{ url_for('add_voyage_route') }}">
+            <label for="voyage_id">Voyage ID:</label>
+            <input type="text" name="voyage_id" required>
+
+            <label for="route_id">Route ID:</label>
+            <input type="text" name="route_id" required>
+
+            <button type="submit">Add Voyage Route</button>
+        </form>
+    </div>
+
+    <!-- Route Table on the Left -->
+    <div style="float: left; width: 30%;">
+        <h3>Route Table</h3>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Route ID</th>
+                    <th>Departure</th>
+                    <th>Departure Platform</th>
+                    <th>Arrival</th>
+                    <th>Arrival Platform</th>
+                    <th>Est Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for route in routes %}
+                <tr>
+                    <td>{{ route.routeID }}</td>
+                    <td>{{ route.departure }}</td>
+                    <td>{{ route.departurePlatform }}</td>
+                    <td>{{ route.arrival }}</td>
+                    <td>{{ route.arrivalPlatform }}</td>
+                    <td>{{ route.estTime }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Voyage Route Table in the Middle -->
+    <div style="float: left; width: 30%;">
+        <h3>Voyage Route Table</h3>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Voyage Route ID</th>
+                    <th>Voyage ID</th>
+                    <th>Route ID</th>
+                    <th>Sequence Order</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for voyage_route in voyage_routes %}
+                <tr>
+                    <td>{{ voyage_route.voyageRouteID }}</td>
+                    <td>{{ voyage_route.voyageID }}</td>
+                    <td>{{ voyage_route.routeID }}</td>
+                    <td>{{ voyage_route.sequenceOrder }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Voyage Table on the Right -->
+    <div style="float: right; width: 30%;">
+        <h3>Voyage Table</h3>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Voyage ID</th>
+                    <th>Voyage Date</th>
+                    <th>Start Time</th>
+                    <th>Voyage Name</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for voyage in voyages %}
+                <tr>
+                    <td>{{ voyage.voyageID }}</td>
+                    <td>{{ voyage.voyageDate }}</td>
+                    <td>{{ voyage.startTime }}</td>
+                    <td>{{ voyage.voyageName }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    </div>
+
+    <!-- Add more divs for additional action panels -->
+
+    <script>
+        function showPanel(panelId) {
+            // Hide all action panels
+            var panels = document.getElementsByClassName('action-panel');
+            for (var i = 0; i < panels.length; i++) {
+                panels[i].style.display = 'none';
+            }
+
+            // Show the selected panel
+            var selectedPanel = document.getElementById(panelId + '-panel');
+            if (selectedPanel) {
+                selectedPanel.style.display = 'block';
+            }
+        }
+    </script>
+
+</body>
+
+</html>
