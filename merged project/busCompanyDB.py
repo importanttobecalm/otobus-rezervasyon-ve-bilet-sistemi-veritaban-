@@ -1,8 +1,9 @@
 import pyodbc
+
 from datetime import datetime, timedelta
 
 
-connStr = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER=lucimark0;DATABASE=BUSCOMPANYDB;Trusted_Connection=yes'
+connStr = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER=lucimark0;DATABASE=BUSCOMPANYDBbk;Trusted_Connection=yes'
 # Yukarıdaki satırı kendi veritabanı bilgilerinizle doldurmalısınız.
 
 createCustomerRoleTableSTR = """
@@ -108,18 +109,74 @@ BEGIN
 END"""
 
 createTicketTableSTR = """
+-- Check if the ticket table exists
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ticket')
 BEGIN
+    -- Create the ticket table
     CREATE TABLE ticket (
         ticketID smallint PRIMARY KEY IDENTITY,
-        tc VARCHAR(11) FOREIGN KEY REFERENCES customer(tc),
+        tc VARCHAR(11) FOREIGN KEY REFERENCES customer(tc) ON DELETE SET NULL,
         busID smallint FOREIGN KEY REFERENCES bus(busID),
         priceID smallint FOREIGN KEY REFERENCES price(priceID),
         gender VARCHAR(1),
         seat VARCHAR(38),
         ticketDate DATETIME DEFAULT GETDATE()
+    );
+END
+ELSE
+BEGIN
+    -- Check if the foreign key constraint exists and does not have ON DELETE SET NULL
+    IF EXISTS (
+        SELECT * 
+        FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS 
+        WHERE CONSTRAINT_NAME = 'FK__ticket__tc__5535A963' AND DELETE_RULE <> 'SET NULL'
     )
+    BEGIN
+        -- Drop the existing foreign key constraint on the tc column
+        ALTER TABLE ticket
+        DROP CONSTRAINT FK__ticket__tc__5535A963;
+
+        -- Add a new foreign key constraint on the tc column with ON DELETE SET NULL
+        ALTER TABLE ticket
+        ADD CONSTRAINT FK__ticket__tc__5535A963
+        FOREIGN KEY (tc) REFERENCES customer(tc) ON DELETE SET NULL;
+    END;
+END;
+"""
+
+
+createDeletedCustomerTableSTR = """
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'DeletedCustomerLog')
+
+BEGIN
+CREATE TABLE DeletedCustomerLog (
+    deletionID INT PRIMARY KEY IDENTITY(1,1),
+    tc VARCHAR(11),
+    name VARCHAR(50),
+    surname VARCHAR(50),
+    email VARCHAR(50),
+    password VARCHAR(50),
+    phone VARCHAR(11),
+    customerRoleID TINYINT,
+    deletionDate DATETIME DEFAULT GETDATE()
+)
 END"""
+
+createDeletedTicketLogTableSTR = """
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'DeletedTicketLog')
+BEGIN
+    CREATE TABLE DeletedTicketLog (
+        deletionID INT PRIMARY KEY IDENTITY(1,1),
+        ticketID smallint,
+        tc VARCHAR(11),
+        busID smallint,
+        priceID smallint,
+        gender VARCHAR(1),
+        seat VARCHAR(38),
+        ticketDate DATETIME
+    )
+END;
+"""
 
 #------------------------#
 createVoyageRouteTriggerSTR = """
@@ -139,18 +196,124 @@ BEGIN
     ');
 END;
 """
+
+
+createCustomerAddTriggerSTR = """
+IF NOT EXISTS (SELECT 1 FROM sys.triggers WHERE name = 'customer_add_database')
+BEGIN
+    EXEC('
+        CREATE TRIGGER customer_add_database
+        ON customer
+        INSTEAD OF INSERT
+        AS 
+        BEGIN 
+            IF NOT EXISTS (SELECT 1 FROM customer c INNER JOIN inserted i ON c.tc = i.tc)
+                AND NOT EXISTS (SELECT 1 FROM customer c INNER JOIN inserted i ON c.email = i.email)
+            BEGIN
+                INSERT INTO customer (tc, name, surname, email, password, phone, customerRoleID)
+                SELECT tc, name, surname, email, password, phone, customerRoleID
+                FROM inserted;
+
+                PRINT ''Registration is successful'';
+            END
+            ELSE
+            BEGIN
+                IF EXISTS (SELECT 1 FROM customer c INNER JOIN inserted i ON c.tc = i.tc)
+                    PRINT ''This TC is already registered. Registration failed.'';
+                ELSE
+                    PRINT ''This email is already registered. Registration failed'';
+            END
+        END;
+    ');
+END;
+"""
+
+createLogDeletedCustomerTriggerSTR = """
+IF NOT EXISTS (SELECT 1 FROM sys.triggers WHERE name = 'log_deleted_customer')
+BEGIN
+    EXEC('
+        CREATE TRIGGER log_deleted_customer
+        ON customer
+        AFTER DELETE
+        AS
+        BEGIN
+            SET NOCOUNT ON;
+
+            INSERT INTO DeletedCustomerLog (tc, name, surname, email, password, phone, customerRoleID)
+            SELECT tc, name, surname, email, password, phone, customerRoleID
+            FROM deleted;
+        END;
+    ');
+END;
+
+"""
+
+createDeleteTicketsOnNullTCTriggerSTR = """
+IF NOT EXISTS (SELECT * FROM sys.triggers WHERE name = 'tr_delete_tickets_on_null_tc')
+BEGIN
+    EXEC('
+        CREATE TRIGGER tr_delete_tickets_on_null_tc
+        ON ticket
+        AFTER UPDATE
+        AS
+        BEGIN
+            SET NOCOUNT ON;
+
+            -- Check if the tc column is updated to NULL
+            IF UPDATE(tc) AND NOT EXISTS (SELECT 1 FROM inserted WHERE tc IS NOT NULL)
+            BEGIN
+                -- Delete the ticket with NULL tc
+                DELETE FROM ticket
+                WHERE tc IS NULL;
+            END;
+        END;
+    ');
+END;
+"""
+
+
+createLogDeletedTicketTriggerSTR = """
+IF NOT EXISTS (SELECT 1 FROM sys.triggers WHERE name = 'log_deleted_ticket')
+BEGIN
+    EXEC('
+        CREATE TRIGGER log_deleted_ticket
+        ON ticket
+        AFTER DELETE
+        AS
+        BEGIN
+            SET NOCOUNT ON;
+
+            INSERT INTO DeletedTicketLog (ticketID, tc, busID, priceID, gender, seat, ticketDate)
+            SELECT ticketID, tc, busID, priceID, gender, seat, ticketDate
+            FROM deleted;
+        END;
+    ');
+END;
+"""
+
 #------------------------#
 createSPAssignVoyageToBusAndCreateSeatsSTR = """
 IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'AssignVoyageToBusAndCreateSeats')
-Begin
+BEGIN
     EXEC('
     CREATE PROCEDURE AssignVoyageToBusAndCreateSeats
     @busID smallint,
     @voyageID tinyint
 AS
 BEGIN
+    DECLARE @firstVoyageRouteID smallint;
+    DECLARE @firstDeparturePlatform tinyint;
+
+    -- Get the first voyage route''s ID and departure platform
+    SELECT TOP 1 @firstVoyageRouteID = voyageRouteID, @firstDeparturePlatform = r.departurePlatform
+    FROM voyage_route vr
+    JOIN route r ON vr.routeID = r.routeID
+    WHERE vr.voyageID = @voyageID
+    ORDER BY vr.sequenceOrder;
+
+    -- Update bus with voyageID, first voyage route ID, and departure platform
     UPDATE bus
-    SET voyageID = @voyageID
+    SET voyageID = @voyageID, currentvoyageRoute = @firstVoyageRouteID, platformno = @firstDeparturePlatform
     WHERE busID = @busID;
 
     -- Get the voyageRouteIDs associated with the voyage
@@ -167,7 +330,25 @@ BEGIN
     FROM @voyageRouteIDs;
 END
     ');
-END;"""
+END;
+"""
+
+SP_GetCustomerTickets = """
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetCustomerTickets')
+BEGIN
+    EXEC('
+    CREATE PROCEDURE SP_GetCustomerTickets
+        @tc VARCHAR(11)
+    AS
+    BEGIN
+        SELECT *
+        FROM ticket
+        WHERE tc = @tc;
+    END
+    ');
+END
+"""
+
 
 #------------------------#
 
@@ -232,6 +413,102 @@ checkLogin = """SELECT * FROM customer WHERE email = ? AND password = ?"""
 
 #------------------------#
 
+SP_GetAllCustomersWithRolesSTR = """
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetAllCustomersWithRoles')
+BEGIN
+    EXEC('
+    CREATE PROCEDURE SP_GetAllCustomersWithRoles
+    AS
+    BEGIN
+        SELECT c.tc, c.name, c.surname, c.email, c.phone, cr.customerRole
+        FROM customer c
+        JOIN customer_role cr ON c.customerRoleID = cr.customerRoleID
+    END
+    ');
+END
+"""
+
+SP_GetAllBusesWithVoyageInfoSTR = """
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetAllBusesWithVoyageInfo')
+BEGIN
+    EXEC('
+    CREATE PROCEDURE SP_GetAllBusesWithVoyageInfo
+    AS
+    BEGIN
+        SELECT b.busID, v.voyageDate, v.startTime, r.departure, r.arrival, b.plate, b.platformno
+        FROM bus b
+        JOIN voyage v ON b.voyageID = v.voyageID
+        JOIN voyage_route vr ON v.voyageID = vr.voyageID
+        JOIN route r ON vr.routeID = r.routeID
+    END
+    ');
+END
+"""
+
+SP_GetAllVoyagesWithRouteInfoSTR = """
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetAllVoyagesWithRouteInfo')
+BEGIN
+    EXEC('
+    CREATE PROCEDURE SP_GetAllVoyagesWithRouteInfo
+    AS
+    BEGIN
+        SELECT v.voyageID, v.voyageDate, v.startTime, r.departure, r.arrival
+        FROM voyage v
+        JOIN voyage_route vr ON v.voyageID = vr.voyageID
+        JOIN route r ON vr.routeID = r.routeID
+    END
+    ');
+END
+"""
+
+SP_GetAllRoutesWithCityNamesSTR = """
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetAllRoutesWithCityNames')
+BEGIN
+    EXEC('
+    CREATE PROCEDURE SP_GetAllRoutesWithCityNames
+    AS
+    BEGIN
+        SELECT r.routeID, c1.cityName, r.departurePlatform, c2.cityName, r.arrivalPlatform, r.estTime
+        FROM route r
+        JOIN city c1 ON r.departure = c1.cityID
+        JOIN city c2 ON r.arrival = c2.cityID
+    END
+    ');
+END
+"""
+
+SP_GetAllVoyageRoutesWithSequenceOrdersSTR = """
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetAllVoyageRoutesWithSequenceOrders')
+BEGIN
+    EXEC('
+    CREATE PROCEDURE SP_GetAllVoyageRoutesWithSequenceOrders
+    AS
+    BEGIN
+        SELECT vr.voyageRouteID, v.voyageDate, v.startTime, r.departure, r.arrival, vr.sequenceOrder
+        FROM voyage_route vr
+        JOIN voyage v ON vr.voyageID = v.voyageID
+        JOIN route r ON vr.routeID = r.routeID
+    END
+    ');
+END
+"""
+
+SP_GetAllTicketsWithCustomerAndBusInfoSTR = """
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetAllTicketsWithCustomerAndBusInfo')
+BEGIN
+    EXEC('
+    CREATE PROCEDURE SP_GetAllTicketsWithCustomerAndBusInfo
+    AS
+    BEGIN
+        SELECT t.ticketID, c.name, c.surname, b.plate, t.seat, t.seat, t.ticketDate 
+        FROM ticket t
+        JOIN customer c ON t.tc = c.tc
+        JOIN bus b ON t.busID = b.busID
+    END
+    ');
+END
+"""
+
 
 
 class BusCompanyDB:
@@ -254,40 +531,64 @@ class BusCompanyDB:
         self.cur.execute(createPriceTableSTR)
         self.cur.execute(createTicketTableSTR)
 
+        self.cur.execute(createDeletedCustomerTableSTR)
+        self.cur.execute(createDeletedTicketLogTableSTR)
+
     def create_triggers(self):
         self.cur.execute(createVoyageRouteTriggerSTR)
+        self.cur.execute(createCustomerAddTriggerSTR)
+
+        self.cur.execute(createLogDeletedCustomerTriggerSTR)
+        self.cur.execute(createLogDeletedTicketTriggerSTR)
+
+        self.cur.execute(createDeleteTicketsOnNullTCTriggerSTR)
+
+        
     
     def create_stored_procedures(self):
         self.cur.execute(createSPAssignVoyageToBusAndCreateSeatsSTR)
+        self.cur.execute(SP_GetCustomerTickets)
+
+        self.cur.execute(SP_GetAllCustomersWithRolesSTR)
+        self.cur.execute(SP_GetAllTicketsWithCustomerAndBusInfoSTR)
     #------------------------#
 
+    #------------------------#
     def insert_customer_role(self, customer_role):
         self.cur.execute(insertCustomerRole, (customer_role))
+        bc.cur.commit()
 
     def insert_customer(self, tc, name, surname, email, password, phone, customerRoleID = 1):
         self.cur.execute(insertCustomer, (tc, name, surname, email, password, phone, customerRoleID))
+        bc.cur.commit()
 
     def insert_city(self, city_name):
         self.cur.execute(insertCity, (city_name))
+        bc.cur.commit()
 
     def insert_route(self, departure, departurePlatform, arrival, arrivalPlatform, estTime):
         self.cur.execute(insertRoute, (departure, departurePlatform, arrival, arrivalPlatform, estTime))
+        bc.cur.commit()
 
     def insert_voyage(self, voyageDate, startTime):
         self.cur.execute(insertVoyage, (voyageDate, startTime, voyageDate))
+        bc.cur.commit()
 
     def insert_voyage_route(self, voyageID, routeID, seq):
         self.cur.execute(insertVoyageRoute, (voyageID, routeID, seq))
+        bc.cur.commit()
 
-    def insert_bus(self, voyageRouteID, plate, platformno, currentvoyageRoute):
-        self.cur.execute(insertBus, (voyageRouteID, plate, platformno, currentvoyageRoute))
+    def insert_bus(self, voyageID, plate, platformno, currentvoyageRoute):
+        self.cur.execute(insertBus, (voyageID, plate, platformno, currentvoyageRoute))
+        bc.cur.commit()
 
     def insert_price(self, firstCity, secondCity, price):
         self.cur.execute(insertPrice, (firstCity, secondCity, price))
+        bc.cur.commit()
 
     #------------------------#
         
-    def create_ticket(self, tc, busID, priceID, seat, ticketDate):
+    def create_ticket(self, tc, busID, priceID, seat, ticketDate ):
         ticketDate = datetime.strptime(ticketDate, '%Y-%m-%d').date()
         print(tc)
         print(busID)
@@ -295,6 +596,26 @@ class BusCompanyDB:
         print(seat)
         print(ticketDate)
         self.cur.execute(createTicket, (tc ,busID, priceID,'M', seat, ticketDate))
+        self.cur.commit()
+
+
+    def create_voyage_route(self, voyage_id, route_id):
+        sequence_order = self.cur.execute("SELECT MAX(sequenceOrder) FROM voyage_route WHERE voyageID = ?", (voyage_id,)).fetchone()[0]
+        seq = sequence_order if sequence_order != None else 0
+        self.cur.execute(insertVoyageRoute, (voyage_id, route_id, seq))
+        self.cur.commit()
+
+    #------------------------#
+        
+    def add_bus(self, plate):
+        self.cur.execute(insertBus, (None, plate, None, None))
+        self.cur.commit()
+
+    #------------------------#
+        
+
+    def sp_assign_voyage_to_bus_and_create_seats(self, bus_id, voyage_id):
+        self.cur.execute("EXEC AssignVoyageToBusAndCreateSeats ?, ?", (bus_id, voyage_id))
         self.cur.commit()
 
     #------------------------#
@@ -313,6 +634,13 @@ class BusCompanyDB:
 
     #------------------------#
 
+    def get_customer_tableSP(self):
+        return self.cur.execute("EXEC SP_GetAllCustomersWithRoles").fetchall()
+    
+    def get_ticket_tableSP(self):
+        return self.cur.execute("EXEC SP_GetAllTicketsWithCustomerAndBusInfo").fetchall()
+    #------------------------#
+
     def get_tc_with_email(self, email):
         return self.cur.execute("SELECT tc FROM customer WHERE email = ?", (email,)).fetchone()[0]
 
@@ -320,12 +648,19 @@ class BusCompanyDB:
         return self.cur.execute("SELECT cityName FROM city").fetchall()
     
     def get_customer_tickets(self, tc):
-        print('tc:')
-        print(tc)
-        return self.cur.execute("SELECT * FROM ticket WHERE tc = ?", (tc,)).fetchall()
+        return bc.cur.execute("EXEC SP_GetCustomerTickets @tc=?", (tc,)).fetchall()
     
     def get_customer_name(self, tc):
         return self.cur.execute("SELECT name FROM customer WHERE tc = ?", (tc,)).fetchone()[0]
+
+    def get_city_names_with_priceid(self, priceID):
+        return [self.cur.execute("SELECT cityName FROM city WHERE cityID = (SELECT firstCity FROM price WHERE priceID = ?)", (priceID,)).fetchone()[0], self.cur.execute("SELECT cityName FROM city WHERE cityID = (SELECT secondCity FROM price WHERE priceID = ?)", (priceID,)).fetchone()[0]]
+    
+    def get_voyage_start_time(self, bus_id):
+        return self.cur.execute("SELECT startTime FROM voyage WHERE voyageID = (SELECT voyageID FROM bus WHERE busID = ?)", (bus_id,)).fetchone()[0]
+    
+    def get_route_esttime(self, seq):
+        return self.cur.execute("SELECT estTime FROM route WHERE routeID = (SELECT routeID FROM voyage_route WHERE voyageRouteID = ?)", (seq,)).fetchone()[0]
     
     def get_suitable_buses(self, from_location, to_location, date):
         # Convert the date string to a datetime object
@@ -349,7 +684,7 @@ class BusCompanyDB:
         result = self.cur.execute(query, (from_location, to_location, date)).fetchall()
         return result
 
-    def get_price_info(self, from_location, to_location):
+    def get_price_info_with_locs(self, from_location, to_location):
         # Select price information based on the given locations (both directions)
         query = """
             SELECT price
@@ -364,6 +699,20 @@ class BusCompanyDB:
         # Process the result or return it as needed
         return result
     
+    def get_price_info_with_priceid(self, priceID):
+        # Select price information based on the given locations (both directions)
+        query = """
+            SELECT price
+            FROM price
+            WHERE priceID = ?
+        """
+
+        # Execute the query with parameters
+        result = self.cur.execute(query, (priceID)).fetchone()
+
+        # Process the result or return it as needed
+        return result
+
     def get_price_id(self, from_location, to_location):
         # Select price information based on the given locations (both directions)
         query = """
@@ -483,9 +832,20 @@ class BusCompanyDB:
                     reservedSeats.append(i)
 
         return reservedSeats
-            
+    
+    #------------------------#
 
+    def delete_ticket_with_ticket_id(self, ticket_id):
+        self.cur.execute("DELETE FROM ticket WHERE ticketID = ?", (ticket_id,))
+        self.cur.commit()
+    
+    def delete_customer_with_tc(self, tc):
+        self.cur.execute("DELETE FROM customer WHERE tc = ?", (tc,))
+        self.cur.commit()
 
+    def delete_ticket_with_ticketID(self, ticket_id):
+        self.cur.execute("DELETE FROM ticket WHERE ticketID = ?", (ticket_id,))
+        self.cur.commit()
 
 
 bc = BusCompanyDB()
@@ -493,7 +853,10 @@ bc.cur.commit()
 def get_customer_role():
     customer_role = 'normal'
     bc.insert_customer_role(customer_role)
+    customer_role = 'admin'
+    bc.insert_customer_role(customer_role)
     bc.cur.commit()
+
 
 def get_customer():
     tc = 1
@@ -588,8 +951,8 @@ def create_voyage():
     bc.cur.commit()
 
 def create_voyage_route():
-    for i in range(3,5):
-        voyage_id = 2
+    for i in range(1,5):
+        voyage_id = 1
         route_id = i
         sequence_order = bc.cur.execute("SELECT MAX(sequenceOrder) FROM voyage_route WHERE voyageID = ?", (voyage_id,)).fetchone()[0]
         seq = sequence_order if sequence_order != None else 0
@@ -603,22 +966,35 @@ def get_city(city_names):
         bc.cur.commit()
 
 
-def sp_assign_voyage_to_bus_and_create_seats(bus_id, voyage_id):
-    bc.cur.execute("EXEC AssignVoyageToBusAndCreateSeats ?, ?", (bus_id, voyage_id))
-    bc.cur.commit()
-
-
 if __name__ == "__main__":
     # get_customer_role()
     # get_customer()
     # city_names_to_insert = ["City1", "City2", "City3", "City4", "City5"]
     # get_city(city_names_to_insert)
     # get_route()
+    # get_price()
+
     # create_voyage()
     # create_voyage_route()
-    # get_bus()
-    # sp_assign_voyage_to_bus_and_create_seats(5, 2)
-    # print(bc.get_customer_name('1'))
-    # print(bc.get_customer_name(bc.get_tc_with_email(1)))
-    print(bc.get_customer_tickets(1))
+
+    # bc.add_bus('1')
+    # bc.sp_assign_voyage_to_bus_and_create_seats(1, 1)
+
+
+    # bc.cur.execute("delete from customer where tc = '2'")
+    # bc.cur.commit()
+    # print(bc.cur.execute("SELECT * FROM ticket").fetchall())
+    # print(bc.cur.execute("SELECT * FROM customer").fetchall())
+    # print(bc.cur.execute("SELECT * FROM DeletedCustomerLog").fetchall())
+    # print(bc.cur.execute("SELECT * FROM DeletedTicketLog").fetchall())
+    # tc_value = '1'  # Replace this with the actual value
+    # bc.cur.execute('update bus set voyageID = 1 where busID = 3')
+    # bc.cur.commit()
+    #bc.take_backup()
+    # get_customer()
+    # print(bc.cur.execute("SELECT * FROM customer").fetchall())
+
+    # bc.take_backup()
+    #bc.return_to_backup()
+    # backup_command = "BACKUP DATABASE BUSCOMPANYDB TO DISK = 'C:\\Users\gkaan\OneDrive\Masaüstü\BackupFolder\Backup.bak'"
     pass

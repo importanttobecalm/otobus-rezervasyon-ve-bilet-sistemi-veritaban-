@@ -65,38 +65,47 @@
 
     <div id="action1-panel" class="action-panel">
         <h2>Customer List</h2>
+        <form method="post" action="{{ url_for('get_table_name') }}">
+            <input type="hidden" name="table_name" value="customer">
+            <button type="submit">Get Customer Table's raport as a pdf</button>
+        </form>
         <table border="1">
             <thead>
                 <tr>
-                    <th>Customer ID</th>
                     <th>TC</th>
                     <th>Name</th>
                     <th>Surname</th>
                     <th>Email</th>
                     <th>Phone</th>
-                    <th>Action</th>
+                    <th>CustomerRole</th>
+                    <th>Action</th> 
                 </tr>
             </thead>
             <tbody>
-                {% for customer in customers %}
+                            {% for customer in customers %}
                 <tr>
-                    <td>{{ customer.customerRoleID }}</td>
-                    <td>{{ customer.tc }}</td>
-                    <td>{{ customer.name }}</td>
-                    <td>{{ customer.surname }}</td>
-                    <td>{{ customer.email }}</td>
-                    <td>{{ customer.phone }}</td>
+                    <td>{{ customer[0] }}</td>  {# tc #}
+                    <td>{{ customer[1] }}</td>  {# name #}
+                    <td>{{ customer[2] }}</td>  {# surname #}
+                    <td>{{ customer[3] }}</td>  {# email #}
+                    <td>{{ customer[4] }}</td>  {# phone #}
+                    <td>{{ customer[5] }}</td>  {# customerRoleID #}
+                    <!-- Assuming customerRole is the last element in the tuple -->
                     <td>
-                        <form method="post" action="{{ url_for('delete_customer', tc=customer.tc) }}">
+                        <form method="post" action="{{ url_for('delete_customer', tc=customer[1]) }}">
                             <button type="submit">Delete</button>
                         </form>
                     </td>
                 </tr>
-                {% endfor %}
+            {% endfor %}
             </tbody>
         </table>
         
         <h2>Ticket List</h2>
+        <form method="post" action="{{ url_for('get_table_name') }}">
+            <input type="hidden" name="table_name" value="ticket">
+            <button type="submit">Get Ticket Table's raport as a pdf</button>
+        </form>
         <table border="1">
             <thead>
                 <tr>
@@ -112,24 +121,56 @@
             </thead>
             <tbody>
                 {% for ticket in tickets %}
-                <tr>
-                    <td>{{ ticket.ticketID }}</td>
-                    <td>{{ ticket.tc }}</td>
-                    <td>{{ ticket.busID }}</td>
-                    <td>{{ ticket.priceID }}</td>
-                    <td>{{ ticket.gender }}</td>
-                    <td>{{ ticket.seat }}</td>
-                    <td>{{ ticket.ticketDate }}</td>
-                    <td>
-                        <form method="post" action="{{ url_for('delete_ticket', ticketID=ticket.ticketID) }}">
-                            <button type="submit">Delete</button>
-                        </form>
-                    </td>
-                </tr>
+                    <tr>
+                        <td>{{ ticket[0] }}</td>  {# ticketID #}
+                        <td>{{ ticket[1] }}</td>  {# tc #}
+                        <td>{{ ticket[2] }}</td>  {# busID #}
+                        <td>{{ ticket[3] }}</td>  {# priceID #}
+                        <td>{{ ticket[4] }}</td>  {# gender #}
+                        <td>{{ ticket[5] }}</td>  {# seat #}
+                        <td>{{ ticket[6] }}</td>  {# ticketDate #}
+                        <td>
+                            <form method="post" action="{{ url_for('delete_ticket', ticketID=ticket[0]) }}">
+                                <button type="submit">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
                 {% endfor %}
             </tbody>
         </table>
         
+        <form method="post" action="{{ url_for('add_customer') }}">
+            <h2>Add New Customer</h2>
+            <label for="tc">TC:</label>
+            <input type="text" id="tc" name="tc" required>
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" required>
+            <label for="surname">Surname:</label>
+            <input type="text" id="surname" name="surname" required>
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+            <label for="phone">Phone:</label>
+            <input type="text" id="phone" name="phone" required>
+            <label for="role_id">Role ID:</label>
+            <input type="text" id="role_id" name="role_id" required>
+            <button type="submit">Add Customer</button>
+        </form>
+    
+        <!-- Form for adding a new ticket -->
+        <form method="post" action="{{ url_for('add_ticket') }}">
+            <h2>Add New Ticket</h2>
+            <label for="customer_tc">Customer TC:</label>
+            <input type="text" id="customer_tc" name="customer_tc" required>
+            <label for="bus_id">Bus ID:</label>
+            <input type="text" id="bus_id" name="bus_id" required>
+            <label for="price_id">Price ID:</label>
+            <input type="text" id="price_id" name="price_id" required>
+            <label for="seat">Seat:</label>
+            <input type="text" id="seat" name="seat" required>
+            <label for="ticket_date">Ticket Date:</label>
+            <input type="text" id="ticket_date" name="ticket_date" required placeholder="%Y-%m-%d">
+            <button type="submit">Add Ticket</button>
+        </form>
     </div>
 
     <div id="action2-panel" class="action-panel">
@@ -148,6 +189,15 @@
         </form>
     </div>
 
+    <div style="display: flex; justify-content: center;">
+        <form method="post" action="{{ url_for('add_bus') }}">
+            <!-- Bus ID Input -->
+            <label for="bus_id">Plate:</label>
+            <input type="text" name="plate" required>
+
+            <button type="submit">Add Bus</button>
+        </form>
+    </div>
     <!-- Bus Table on the Left -->
     <div style="float: left; width: 20%;">
         <h3>Bus Table</h3>
@@ -245,7 +295,7 @@
     </div>
 
     <!-- Voyage Route Table in the Middle -->
-    <div style="float: left; width: 30%;">
+    <div style="float: left; width: 35%;">
         <h3>Voyage Route Table</h3>
         <table border="1">
             <thead>

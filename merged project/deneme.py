@@ -1,3 +1,0 @@
-x = ''.split(',')
-
-print(x)

@@ -43,59 +43,88 @@ def login():
             return set_index_page()
         else:
             error_message = "Login failed. Please check your information and try again."
-            customers = bk.bc.cur.execute("SELECT * FROM customer").fetchall()
-            buses = bk.bc.cur.execute("SELECT * FROM bus").fetchall()
-            voyages = bk.bc.cur.execute("SELECT * FROM voyage").fetchall()
-            routes = bk.bc.cur.execute("SELECT * FROM route").fetchall()
-            voyage_routes = bk.bc.cur.execute("SELECT * FROM voyage_route").fetchall()
-            tickets = bk.bc.cur.execute("SELECT * FROM ticket").fetchall()
-            return render_template('admin.html', customers = customers, buses = buses, voyages = voyages, routes = routes, voyage_routes = voyage_routes, tickets=tickets)
+            return open_admin_panel()
             return render_template('giris.html', error_message=error_message, user_is_authenticated=user_is_authenticated, user_name=user_name)
+
+
+def open_admin_panel():
+    customers = bk.get_customer_tableSP()
+    buses = bk.bc.cur.execute("SELECT * FROM bus WHERE voyageID IS NULL").fetchall()
+    voyages = bk.bc.cur.execute("SELECT * FROM voyage").fetchall()
+    routes = bk.bc.cur.execute("SELECT * FROM route").fetchall()
+    voyage_routes = bk.bc.cur.execute("SELECT * FROM voyage_route").fetchall()
+    tickets = bk.get_ticket_tableSP()
+    return render_template('admin.html', customers = customers, buses = buses, voyages = voyages, routes = routes, voyage_routes = voyage_routes, tickets=tickets)
+
+@app.route('/get_table_name', methods=['POST'])
+def get_table_name():
+    table_name = request.form.get('table_name')
+    bk.get_tables_pdf(table_name)
+    return open_admin_panel()
+
+@app.route('/add_customer', methods=['POST'])
+def add_customer():
+    if request.method == 'POST':
+        tc = request.form['tc']
+        name = request.form['name']
+        surname = request.form['surname']
+        email = request.form['email']
+        phone = request.form['phone']
+        role_id = request.form['role_id']
+        bk.insert_customer(tc, name, surname, email, phone, role_id)
+        # Add the new customer to the database (replace with your database logic)
+        # Example: db.add_customer(tc, name, surname, email, phone, role_id)
+
+        # Redirect to the page with the updated customer list
+        return open_admin_panel()
+
+@app.route('/add_ticket', methods=['POST'])
+def add_ticket():
+    if request.method == 'POST':
+        customer_tc = request.form['customer_tc']
+        bus_id = request.form['bus_id']
+        price_id = request.form['price_id']
+        seat = request.form['seat']
+        ticket_date = request.form['ticket_date']
+        bk.create_ticket_admin(customer_tc, bus_id, price_id, seat, ticket_date)
+        # Add the new ticket to the database (replace with your database logic)
+        # Example: db.add_ticket(customer_tc, bus_id, price_id, gender, seat, ticket_date)
+
+        # Redirect to the page with the updated ticket list
+        return open_admin_panel()
 
 @app.route('/delete_customer/<tc>', methods=['POST'])
 def delete_customer(tc):
-    # Perform the customer deletion logic here
-    # You should modify this based on your actual deletion process
-    pass
-    return redirect(url_for('admin_panel'))
+    bk.delete_customer_with_tc(tc)
+    return open_admin_panel()
 
 @app.route('/delete_ticket/<ticketID>', methods=['POST'])
 def delete_ticket(ticketID):
-    # Perform the ticket deletion logic here
-    # You should modify this based on your actual deletion process
-    pass
-    return redirect(url_for('admin_panel'))
+    bk.delete_ticket_with_ticketID(ticketID)
+    return open_admin_panel()
 
 @app.route('/assign_bus_to_voyage', methods=['POST'])
 def assign_bus_to_voyage():
-    # Extract data from the form
-    # bus_id = request.form.get('bus_id')
-    # voyage_id = request.form.get('voyage_id')
+    bus_id = request.form.get('bus_id')
+    voyage_id = request.form.get('voyage_id')
+    bk.assign_bus_to_voyage(bus_id, voyage_id)
+    return open_admin_panel()
 
-    # # Perform the assignment logic (modify based on your actual logic)
-    # # For example, you might want to update the bus table with the voyage ID
-    # # or create a new record in a table that represents the assignment.
-    # # This is just a placeholder, update it based on your database structure and logic.
-    # bk.bc.cur.execute("UPDATE bus SET voyageID = ? WHERE busID = ?", (voyage_id, bus_id))
-    # bk.bc.cur.commit()
-    pass
-    # # Redirect back to the input page
-    # return redirect(url_for('input_page'))
+@app.route('/add_bus', methods=['POST'])
+def add_bus():
+    bus_id = request.form.get('plate')
+    bk.add_buss(bus_id)
+    return open_admin_panel()
 
 @app.route('/add_voyage_route', methods=['POST'])
 def add_voyage_route():
     # Extract data from the form
-    # voyage_id = request.form.get('voyage_id')
-    # route_id = request.form.get('route_id')
+    voyage_id = request.form.get('voyage_id')
+    route_id = request.form.get('route_id')
 
-    # # Perform the addition logic (modify based on your actual logic)
-    # # For example, you might want to insert a new record in the voyage_route table.
-    # # This is just a placeholder, update it based on your database structure and logic.
-    # bc.cur.execute("INSERT INTO voyage_route (voyageID, routeID, sequenceOrder) VALUES (?, ?, 1)", (voyage_id, route_id))
-    # bc.cur.commit()
-    pass
-    # # Redirect back to Panel 3
-    # return redirect(url_for('panel3'))
+    bk.create_voyage_route(voyage_id, route_id)
+
+    return open_admin_panel()
 
 
 @app.route('/logout')
@@ -121,14 +150,17 @@ def findVoyage():
         month = request.form.get('month')
         year = request.form.get('year')
 
+         
+
         suitable_buses = bk.get_suitable_buses(from_location, to_location, f"{year}-{month}-{day}")
         for i in range(1,len(suitable_buses)+1):
+            estTimeSTR = bk.get_estimated_time(from_location, to_location, suitable_buses[i-1])
             seferler_data.append({"fromLoc": from_location, "toLoc": to_location, 
-         "time": "00:00 -> 03:00", "price": str(bk.get_price_info()), 
+         "time": estTimeSTR, "price": str(bk.get_price_info()), 
          "features": ["WiFi", "Ücretsiz Yemek", "Televizyon"], 
-         "bus_type": "1+1 10 Koltuklu Lüks Otobüs", "bus_id": str(i)})
+         "bus_type": "1+1 10 Koltuklu Lüks Otobüs", "bus_id": str(suitable_buses[i-1])})
     
-    return render_template('seferler.html', seferler_data=seferler_data)
+    return render_template('seferler.html', seferler_data=seferler_data, user_name=user_name)
 
 @app.route('/busChoice', methods=["GET", "POST"])
 def busChoice():
@@ -138,7 +170,7 @@ def busChoice():
         bk.set_selected_bus(bus_id)
         """ fix here """
         reservedSeats = bk.get_reserved_seats()
-        return render_template('koltukSec.html', reservedSeats=reservedSeats)
+        return render_template('koltukSec.html', reservedSeats=reservedSeats, user_name=user_name)
 
 
 @app.route('/seatChoice', methods=["GET", "POST"])
@@ -155,7 +187,7 @@ def seatChoice():
         else:
             bk.set_reserved_seat(chosen_seats)
             
-    return render_template('satinAl.html')
+    return render_template('satinAl.html', user_name=user_name)
 
 
 @app.route('/purchase', methods=["GET", "POST"])
@@ -165,11 +197,16 @@ def purchase():
 
         bus_tickets = bk.customer_tickets_info()
         
-        return render_template('biletlerim.html', bus_tickets=bus_tickets)
+        return render_template('biletlerim.html', bus_tickets=bus_tickets, user_name=user_name)
 
-
-
-
+@app.route('/cancel_ticket', methods=['POST'])
+def cancel_ticket():
+    if request.method == 'POST':
+        pnr_no = request.form.get('pnr_no')  # Get PNR number from the form data
+        bk.delete_ticket_with_ticket_id(pnr_no)
+        # Add your logic here to cancel the ticket (e.g., update the database)
+                
+        return set_index_page()
 
 
 
@@ -195,7 +232,7 @@ def set_index_page():
 # render the html pages to add them to server
 @app.route('/index.html', methods=["GET"])
 def anasayfa():
-    return render_template('index.html')
+    return set_index_page()
 
 app.route('/admin.html', methods=["GET"])
 def admin():
@@ -203,7 +240,8 @@ def admin():
 
 @app.route('/biletlerim.html', methods=["GET"])
 def biletlerim():
-    return render_template('biletlerim.html')
+    bus_tickets = bk.customer_tickets_info()
+    return render_template('biletlerim.html', bus_tickets=bus_tickets, user_name=user_name)
 
 @app.route('/giris.html', methods=["GET"])
 def giris():
@@ -224,6 +262,11 @@ def koltukSec():
 @app.route('/satinAl.html', methods=["GET"])
 def satinAl():
     return render_template('satinAl.html')
+
+@app.route('/loading.html', methods=["GET"])
+def loading():
+    return render_template('loading.html')
+
 
 if __name__ == '__main__':
     app.run(debug=True)
