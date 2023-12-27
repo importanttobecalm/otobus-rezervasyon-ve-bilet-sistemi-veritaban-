@@ -1,7 +1,8 @@
 # OTOBÜS REZERVASYON ve BİLET SİSTEMİNİN VERİTABANI TASARIMININ İMPLEMANTASYON
 Otobüs firması rezervasyon ve bilet sisteminin veritabanı tasarımının implemantasyonu
 
-![b](https://github.com/importanttobecalm/otobus-rezervasyon-ve-bilet-sistemi-veritaban-/assets/91744709/e128f8d8-0461-41fa-9045-ed80b112bc9f)
+![a](https://github.com/importanttobecalm/otobus-rezervasyon-ve-bilet-sistemi-veritaban-/assets/91744709/1059e140-7cd7-442d-8c6a-d5c7a21f784f)
+
 
 veri tabanı diyagramı bu şekilde gösteriliyor ayrıntılı trigger ve stored prosedure  tanım ve raporları aşağıda yazılacaktır
 
