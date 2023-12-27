@@ -19,6 +19,7 @@ def register_check(tc, name, surname, email, password, phone):
         return False
     else:
         bc.insert_customer(tc, name, surname, email, password, phone)
+        bc.cur.commit()
         return True
 
 def login_check(email, password):
@@ -73,6 +74,12 @@ def get_customer_tableSP():
 
 def get_ticket_tableSP():
     return bc.get_ticket_tableSP()
+
+def get_route_tableSP():
+    return bc.get_route_tableSP()
+
+def get_voyageRouteandVoyage_tableSP():
+    return bc.get_voyageRouteandVoyage_tableSP()
 
 def set_selected_bus(bus_id):
     global selectedBus

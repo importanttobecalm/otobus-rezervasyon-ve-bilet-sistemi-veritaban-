@@ -51,8 +51,8 @@ def open_admin_panel():
     customers = bk.get_customer_tableSP()
     buses = bk.bc.cur.execute("SELECT * FROM bus WHERE voyageID IS NULL").fetchall()
     voyages = bk.bc.cur.execute("SELECT * FROM voyage").fetchall()
-    routes = bk.bc.cur.execute("SELECT * FROM route").fetchall()
-    voyage_routes = bk.bc.cur.execute("SELECT * FROM voyage_route").fetchall()
+    routes = bk.get_route_tableSP()
+    voyage_routes = bk.get_voyageRouteandVoyage_tableSP()
     tickets = bk.get_ticket_tableSP()
     return render_template('admin.html', customers = customers, buses = buses, voyages = voyages, routes = routes, voyage_routes = voyage_routes, tickets=tickets)
 
@@ -72,10 +72,7 @@ def add_customer():
         phone = request.form['phone']
         role_id = request.form['role_id']
         bk.insert_customer(tc, name, surname, email, phone, role_id)
-        # Add the new customer to the database (replace with your database logic)
-        # Example: db.add_customer(tc, name, surname, email, phone, role_id)
 
-        # Redirect to the page with the updated customer list
         return open_admin_panel()
 
 @app.route('/add_ticket', methods=['POST'])
@@ -87,10 +84,7 @@ def add_ticket():
         seat = request.form['seat']
         ticket_date = request.form['ticket_date']
         bk.create_ticket_admin(customer_tc, bus_id, price_id, seat, ticket_date)
-        # Add the new ticket to the database (replace with your database logic)
-        # Example: db.add_ticket(customer_tc, bus_id, price_id, gender, seat, ticket_date)
 
-        # Redirect to the page with the updated ticket list
         return open_admin_panel()
 
 @app.route('/delete_customer/<tc>', methods=['POST'])
@@ -113,7 +107,7 @@ def assign_bus_to_voyage():
 @app.route('/add_bus', methods=['POST'])
 def add_bus():
     bus_id = request.form.get('plate')
-    bk.add_buss(bus_id)
+    bk.add_bus(bus_id)
     return open_admin_panel()
 
 @app.route('/add_voyage_route', methods=['POST'])

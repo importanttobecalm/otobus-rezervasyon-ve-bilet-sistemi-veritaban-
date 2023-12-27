@@ -185,7 +185,7 @@
             <label for="voyage_id">Voyage ID:</label>
             <input type="text" name="voyage_id" required>
 
-            <button type="submit">Assign Bus to Voyage</button>
+            <button type="submit">Assign Voyage to Bus</button>
         </form>
     </div>
 
@@ -206,6 +206,7 @@
                 <tr>
                     <th>Bus ID</th>
                     <th>voyageID</th>
+                    <th>Plate</th>
                     <th>Platform No</th>
                     <th>Current Voyage Route</th>
                 </tr>
@@ -215,6 +216,7 @@
                 <tr>
                     <td>{{ bus.busID }}</td>
                     <td>{{ bus.voyageID }}</td>
+                    <td>{{ bus.plate }}</td>
                     <td>{{ bus.platformno }}</td>
                     <td>{{ bus.currentvoyageRoute }}</td>
                 </tr>
@@ -282,12 +284,12 @@
             <tbody>
                 {% for route in routes %}
                 <tr>
-                    <td>{{ route.routeID }}</td>
-                    <td>{{ route.departure }}</td>
-                    <td>{{ route.departurePlatform }}</td>
-                    <td>{{ route.arrival }}</td>
-                    <td>{{ route.arrivalPlatform }}</td>
-                    <td>{{ route.estTime }}</td>
+                    <td>{{ route[0] }}</td>
+                    <td>{{ route[1] }}</td>
+                    <td>{{ route[2] }}</td>
+                    <td>{{ route[3] }}</td>
+                    <td>{{ route[4] }}</td>
+                    <td>{{ route[5] }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -295,24 +297,30 @@
     </div>
 
     <!-- Voyage Route Table in the Middle -->
-    <div style="float: left; width: 35%;">
+    <div style="float: left; width: 40%;">
         <h3>Voyage Route Table</h3>
         <table border="1">
             <thead>
                 <tr>
                     <th>Voyage Route ID</th>
-                    <th>Voyage ID</th>
-                    <th>Route ID</th>
-                    <th>Sequence Order</th>
+                    <th>Date</th>
+                    <th>startTime</th>
+                    <th>Departure</th>
+                    <th>Arrival</th>
+                    <th>Voyage</th>
+                    <th>Sequence</th>
                 </tr>
             </thead>
             <tbody>
                 {% for voyage_route in voyage_routes %}
                 <tr>
-                    <td>{{ voyage_route.voyageRouteID }}</td>
-                    <td>{{ voyage_route.voyageID }}</td>
-                    <td>{{ voyage_route.routeID }}</td>
-                    <td>{{ voyage_route.sequenceOrder }}</td>
+                    <td>{{ voyage_route[0] }}</td>
+                    <td>{{ voyage_route[1] }}</td>
+                    <td>{{ voyage_route[2] }}</td>
+                    <td>{{ voyage_route[4] }}</td>
+                    <td>{{ voyage_route[5] }}</td>
+                    <td>{{ voyage_route[3] }}</td>
+                    <td>{{ voyage_route[6] }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -320,7 +328,7 @@
     </div>
 
     <!-- Voyage Table on the Right -->
-    <div style="float: right; width: 30%;">
+    <div style="float: left; width: 30%;">
         <h3>Voyage Table</h3>
         <table border="1">
             <thead>

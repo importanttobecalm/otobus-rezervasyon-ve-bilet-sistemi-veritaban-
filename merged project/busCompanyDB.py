@@ -1,5 +1,6 @@
 import pyodbc
-
+import pandas as pd
+import os
 from datetime import datetime, timedelta
 
 
@@ -25,7 +26,7 @@ BEGIN
       email VARCHAR(50),
       password VARCHAR(50),
       phone VARCHAR(11),
-      customerRoleID tinyint FOREIGN KEY REFERENCES customer_role(customerRoleID)
+      customerRoleID tinyint FOREIGN KEY REFERENCES customer_role(customerRoleID) ON DELETE SET NULL
   )
 END"""
 
@@ -43,14 +44,14 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'route')
 BEGIN
    CREATE TABLE route (
        routeID tinyint PRIMARY KEY IDENTITY,
-       departure tinyint FOREIGN KEY REFERENCES city(cityID),
+       departure tinyint FOREIGN KEY REFERENCES city(cityID) ON DELETE Cascade,
        departurePlatform tinyint,
-       arrival tinyint FOREIGN KEY REFERENCES city(cityID),
+       arrival tinyint FOREIGN KEY REFERENCES city(cityID) ON DELETE NO ACTION,
        arrivalPlatform tinyint,
        estTime smallint
    )
-END"""
-
+END
+"""
 createVoyageTableSTR = """
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'voyage')
 BEGIN
@@ -67,8 +68,8 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'voyage_route')
 BEGIN
     CREATE TABLE voyage_route (
     voyageRouteID smallint PRIMARY KEY IDENTITY,
-    voyageID tinyint FOREIGN KEY REFERENCES voyage(voyageID),
-    routeID tinyint FOREIGN KEY REFERENCES route(routeID),
+    voyageID tinyint FOREIGN KEY REFERENCES voyage(voyageID) ON DELETE Cascade,
+    routeID tinyint FOREIGN KEY REFERENCES route(routeID) ON DELETE SET NULL,
     sequenceOrder smallint NOT NULL
 )END
 """
@@ -78,11 +79,11 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'bus')
 BEGIN
    CREATE TABLE bus (
        busID smallint PRIMARY KEY IDENTITY,
-       voyageID tinyint FOREIGN KEY REFERENCES voyage(voyageID),
+       voyageID tinyint FOREIGN KEY REFERENCES voyage(voyageID) ON DELETE NO ACTION,
        plate VARCHAR(10),
        seat VARCHAR(10) DEFAULT REPLICATE('0', 10),
        platformno tinyint DEFAULT 0,
-       currentvoyageRoute smallint FOREIGN KEY REFERENCES voyage_route(voyageRouteID)
+       currentvoyageRoute smallint FOREIGN KEY REFERENCES voyage_route(voyageRouteID) ON DELETE SET NULL
    )
 END"""
 
@@ -91,7 +92,7 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'bus_seat')
 BEGIN
    CREATE TABLE bus_seat (
        busSeatID smallint PRIMARY KEY IDENTITY,
-       busID smallint FOREIGN KEY REFERENCES bus(busID),
+       busID smallint FOREIGN KEY REFERENCES bus(busID) ON DELETE Cascade,
        seat VARCHAR(10) DEFAULT REPLICATE('0', 10),
        reservedvoyageRoute smallint
    )
@@ -102,8 +103,8 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'price')
 BEGIN
     CREATE TABLE price (
         priceID smallint PRIMARY KEY IDENTITY,
-        firstCity tinyint FOREIGN KEY REFERENCES city(cityID),
-        secondCity tinyint FOREIGN KEY REFERENCES city(cityID),
+        firstCity tinyint FOREIGN KEY REFERENCES city(cityID) ON DELETE Cascade,
+        secondCity tinyint FOREIGN KEY REFERENCES city(cityID) ON DELETE NO ACTION,
         price DECIMAL(10, 2)
     )
 END"""
@@ -115,9 +116,9 @@ BEGIN
     -- Create the ticket table
     CREATE TABLE ticket (
         ticketID smallint PRIMARY KEY IDENTITY,
-        tc VARCHAR(11) FOREIGN KEY REFERENCES customer(tc) ON DELETE SET NULL,
-        busID smallint FOREIGN KEY REFERENCES bus(busID),
-        priceID smallint FOREIGN KEY REFERENCES price(priceID),
+        tc VARCHAR(11) FOREIGN KEY REFERENCES customer(tc) ON DELETE Cascade,
+        busID smallint FOREIGN KEY REFERENCES bus(busID) ON DELETE SET NULL,
+        priceID smallint FOREIGN KEY REFERENCES price(priceID) ON DELETE SET NULL,
         gender VARCHAR(1),
         seat VARCHAR(38),
         ticketDate DATETIME DEFAULT GETDATE()
@@ -349,7 +350,73 @@ BEGIN
 END
 """
 
+SP_GetAllCustomersWithRolesSTR = """
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetAllCustomersWithRoles')
+BEGIN
+    EXEC('
+    CREATE PROCEDURE SP_GetAllCustomersWithRoles
+    AS
+    BEGIN
+        SELECT c.tc, c.name, c.surname, c.email, c.phone, cr.customerRole
+        FROM customer c
+        JOIN customer_role cr ON c.customerRoleID = cr.customerRoleID
+    END
+    ');
+END
+"""
 
+
+SP_GetAllRoutesWithCityNamesSTR = """
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetAllRoutesWithCityNames')
+BEGIN
+    EXEC('
+    CREATE PROCEDURE SP_GetAllRoutesWithCityNames
+    AS
+    BEGIN
+        SELECT r.routeID, c1.cityName, r.departurePlatform, c2.cityName, r.arrivalPlatform, r.estTime
+        FROM route r
+        JOIN city c1 ON r.departure = c1.cityID
+        JOIN city c2 ON r.arrival = c2.cityID
+    END
+    ');
+END
+"""
+
+SP_GetAllVoyageRoutesWithSequenceOrdersSTR = """
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetAllVoyageRoutesWithSequenceOrders')
+BEGIN
+    EXEC('
+    CREATE PROCEDURE SP_GetAllVoyageRoutesWithSequenceOrders
+    AS
+    BEGIN
+        SELECT vr.voyageRouteID, v.voyageDate, v.startTime, v.voyageName,
+               dep.cityName AS departureCity, arr.cityName AS arrivalCity, 
+               vr.sequenceOrder
+        FROM voyage_route vr
+        JOIN voyage v ON vr.voyageID = v.voyageID
+        JOIN route r ON vr.routeID = r.routeID
+        JOIN city dep ON r.departure = dep.cityID
+        JOIN city arr ON r.arrival = arr.cityID
+    END
+    ');
+END
+"""
+
+SP_GetAllTicketsWithCustomerAndBusInfoSTR = """
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetAllTicketsWithCustomerAndBusInfo')
+BEGIN
+    EXEC('
+    CREATE PROCEDURE SP_GetAllTicketsWithCustomerAndBusInfo
+    AS
+    BEGIN
+        SELECT t.ticketID, c.name, c.surname, b.plate, t.seat, t.seat, t.ticketDate 
+        FROM ticket t
+        JOIN customer c ON t.tc = c.tc
+        JOIN bus b ON t.busID = b.busID
+    END
+    ');
+END
+"""
 #------------------------#
 
 insertCustomerRole = """
@@ -399,13 +466,6 @@ SELECT ?, ?, ?, ?, ?, ?
 
 #------------------------#
 
-# further brain needed
-select_voyage_based_date = """SELECT * FROM voyage
-JOIN voyage_route ON voyage.voyageID = voyage_route.voyageID
-WHERE voyage.voyageDate = ? """
-
-#------------------------#
-
 checkRegister = """SELECT * FROM customer WHERE tc = ? OR email = ? OR phone = ?
 """
 
@@ -413,101 +473,7 @@ checkLogin = """SELECT * FROM customer WHERE email = ? AND password = ?"""
 
 #------------------------#
 
-SP_GetAllCustomersWithRolesSTR = """
-IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetAllCustomersWithRoles')
-BEGIN
-    EXEC('
-    CREATE PROCEDURE SP_GetAllCustomersWithRoles
-    AS
-    BEGIN
-        SELECT c.tc, c.name, c.surname, c.email, c.phone, cr.customerRole
-        FROM customer c
-        JOIN customer_role cr ON c.customerRoleID = cr.customerRoleID
-    END
-    ');
-END
-"""
 
-SP_GetAllBusesWithVoyageInfoSTR = """
-IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetAllBusesWithVoyageInfo')
-BEGIN
-    EXEC('
-    CREATE PROCEDURE SP_GetAllBusesWithVoyageInfo
-    AS
-    BEGIN
-        SELECT b.busID, v.voyageDate, v.startTime, r.departure, r.arrival, b.plate, b.platformno
-        FROM bus b
-        JOIN voyage v ON b.voyageID = v.voyageID
-        JOIN voyage_route vr ON v.voyageID = vr.voyageID
-        JOIN route r ON vr.routeID = r.routeID
-    END
-    ');
-END
-"""
-
-SP_GetAllVoyagesWithRouteInfoSTR = """
-IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetAllVoyagesWithRouteInfo')
-BEGIN
-    EXEC('
-    CREATE PROCEDURE SP_GetAllVoyagesWithRouteInfo
-    AS
-    BEGIN
-        SELECT v.voyageID, v.voyageDate, v.startTime, r.departure, r.arrival
-        FROM voyage v
-        JOIN voyage_route vr ON v.voyageID = vr.voyageID
-        JOIN route r ON vr.routeID = r.routeID
-    END
-    ');
-END
-"""
-
-SP_GetAllRoutesWithCityNamesSTR = """
-IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetAllRoutesWithCityNames')
-BEGIN
-    EXEC('
-    CREATE PROCEDURE SP_GetAllRoutesWithCityNames
-    AS
-    BEGIN
-        SELECT r.routeID, c1.cityName, r.departurePlatform, c2.cityName, r.arrivalPlatform, r.estTime
-        FROM route r
-        JOIN city c1 ON r.departure = c1.cityID
-        JOIN city c2 ON r.arrival = c2.cityID
-    END
-    ');
-END
-"""
-
-SP_GetAllVoyageRoutesWithSequenceOrdersSTR = """
-IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetAllVoyageRoutesWithSequenceOrders')
-BEGIN
-    EXEC('
-    CREATE PROCEDURE SP_GetAllVoyageRoutesWithSequenceOrders
-    AS
-    BEGIN
-        SELECT vr.voyageRouteID, v.voyageDate, v.startTime, r.departure, r.arrival, vr.sequenceOrder
-        FROM voyage_route vr
-        JOIN voyage v ON vr.voyageID = v.voyageID
-        JOIN route r ON vr.routeID = r.routeID
-    END
-    ');
-END
-"""
-
-SP_GetAllTicketsWithCustomerAndBusInfoSTR = """
-IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_GetAllTicketsWithCustomerAndBusInfo')
-BEGIN
-    EXEC('
-    CREATE PROCEDURE SP_GetAllTicketsWithCustomerAndBusInfo
-    AS
-    BEGIN
-        SELECT t.ticketID, c.name, c.surname, b.plate, t.seat, t.seat, t.ticketDate 
-        FROM ticket t
-        JOIN customer c ON t.tc = c.tc
-        JOIN bus b ON t.busID = b.busID
-    END
-    ');
-END
-"""
 
 
 
@@ -543,6 +509,7 @@ class BusCompanyDB:
 
         self.cur.execute(createDeleteTicketsOnNullTCTriggerSTR)
 
+
         
     
     def create_stored_procedures(self):
@@ -551,8 +518,80 @@ class BusCompanyDB:
 
         self.cur.execute(SP_GetAllCustomersWithRolesSTR)
         self.cur.execute(SP_GetAllTicketsWithCustomerAndBusInfoSTR)
+        self.cur.execute(SP_GetAllRoutesWithCityNamesSTR)
+        self.cur.execute(SP_GetAllVoyageRoutesWithSequenceOrdersSTR)
     #------------------------#
+    def export_all_tables_to_csv(self, table_dict):
+        for table_name, columns in table_dict.items():
+            self.export_table_to_csv(table_name, columns)
 
+    def export_table_to_csv(self, table_name, columns):
+        export_folder = 'ExportedData'
+        if not os.path.exists(export_folder):
+            os.makedirs(export_folder)
+
+        column_names = ", ".join(columns)
+        query = f"SELECT {column_names} FROM {table_name}"
+
+        # Execute the query using the cursor
+        self.cur.execute(query)
+
+        # Fetch all rows from the query result
+        rows = self.cur.fetchall()
+
+        # Get the column names from the cursor description
+        columns = [column[0] for column in self.cur.description]
+
+        # Create a DataFrame from the fetched data
+        df = pd.DataFrame.from_records(rows, columns=columns)
+
+        # Specify the CSV file path within the ExportedData folder
+        csv_path = os.path.join(export_folder, f"{table_name}_table.csv")
+
+        # Export the DataFrame to a CSV file
+        df.to_csv(csv_path, index=False)
+
+    def return_from_backup(self, table_name):
+        for name in table_name:
+            clear_query = f"DROP TABLE {name}"
+            self.cur.execute(clear_query)
+            self.cur.commit()
+
+        self.create_tables()
+        table_name = table_name[::-1]
+
+        for name in table_name:
+            self.insert_csv_data_into_table(name)
+
+    def insert_csv_data_into_table(self, table_name):
+        # Read CSV file into DataFrame
+        csv_path = os.path.join('ExportedData', f"{table_name}_table.csv")
+        df = pd.read_csv(csv_path)
+        print(table_name)
+        # Insert data into the table
+        for _, row in df.iterrows():
+            # Replace empty strings with None
+            row = row.apply(lambda x: None if pd.isna(x) or (isinstance(x, str) and x.strip() == '') else x)
+
+            columns = ', '.join(row.index)
+            values = ', '.join([self.format_value(value, df.dtypes[column]) for column, value in row.items()])
+            insert_query = f"INSERT INTO {table_name} ({columns}) VALUES ({values})"
+            self.cur.execute(insert_query)
+            self.cur.commit()
+
+    def format_value(self, value, column_type):
+        if pd.isna(value):
+            return 'NULL'
+        elif column_type == 'int64':
+            return str(int(value))
+        elif column_type == 'float64':
+            return str(float(value))
+        elif column_type == 'datetime64[ns]':
+            return f"'{value}'"
+        elif column_type == 'object':
+            return f"N'{str(value)}'"  # Use N for Unicode strings
+        else:
+            return str(value)
     #------------------------#
     def insert_customer_role(self, customer_role):
         self.cur.execute(insertCustomerRole, (customer_role))
@@ -620,12 +659,6 @@ class BusCompanyDB:
 
     #------------------------#
 
-    def select_voyage_based_date(self, date):
-        date = datetime.strptime(date, '%d-%m-%Y').date()
-        #print(self.cur.execute(select_voyage_based_date, (date,)).fetchall())
-
-    #------------------------#
-
     def check_register(self, tc, email, phone):
         return self.cur.execute(checkRegister, (tc, email, phone)).fetchone()
 
@@ -639,6 +672,12 @@ class BusCompanyDB:
     
     def get_ticket_tableSP(self):
         return self.cur.execute("EXEC SP_GetAllTicketsWithCustomerAndBusInfo").fetchall()
+    
+    def get_route_tableSP(self):
+        return self.cur.execute("EXEC SP_GetAllRoutesWithCityNames").fetchall()
+    
+    def get_voyageRouteandVoyage_tableSP(self):
+        return self.cur.execute("EXEC SP_GetAllVoyageRoutesWithSequenceOrders").fetchall()
     #------------------------#
 
     def get_tc_with_email(self, email):
@@ -902,7 +941,7 @@ def get_bus():
 def get_price():
     firstCity = 1
     secondCity = 2
-    price = 250
+    price = 200
     bc.insert_price(firstCity, secondCity, price)
     bc.cur.commit()
 
@@ -997,4 +1036,48 @@ if __name__ == "__main__":
     # bc.take_backup()
     #bc.return_to_backup()
     # backup_command = "BACKUP DATABASE BUSCOMPANYDB TO DISK = 'C:\\Users\gkaan\OneDrive\Masaüstü\BackupFolder\Backup.bak'"
+
+    table_dict = {
+        "customer_role": ["customerRole"],
+        "customer": ["tc", "name", "surname", "email", "password", "phone", "customerRoleID"],
+        "city": ["cityName"],
+        "route": ["departure", "departurePlatform", "arrival", "arrivalPlatform", "estTime"],
+        "voyage": ["voyageDate", "startTime", "voyageName"],
+        "voyage_route": ["voyageID", "routeID", "sequenceOrder"],
+        "bus": ["voyageID", "plate", "seat", "platformno", "currentvoyageRoute"],
+        "bus_seat": ["busID", "seat", "reservedvoyageRoute"],
+        "price": ["firstCity", "secondCity", "price"],
+        "ticket": ["tc", "busID", "priceID", "gender", "seat", "ticketDate"],
+        "DeletedCustomerLog": ["tc", "name", "surname", "email", "password", "phone", "customerRoleID", "deletionDate"],
+        "DeletedTicketLog": ["ticketID", "tc", "busID", "priceID", "gender", "seat", "ticketDate"]
+        }
+    
+    bc.export_all_tables_to_csv(table_dict)
+
+    deleteOrder = ["ticket", "bus_seat", "bus", "voyage_route", "voyage", "route", "price", "city", "customer", "customer_role"]
+    # return backup delete all tables
+    # bc.cur.execute('delete from ticket')
+    # bc.cur.execute('delete from bus_seat')
+    # bc.cur.execute('delete from bus')
+    # bc.cur.execute('delete from customer')
+    # bc.cur.execute('delete from customer_role')
+    # bc.cur.execute('delete from voyage_route')
+    # bc.cur.execute('delete from voyage')
+    # bc.cur.execute('delete from price')
+    # bc.cur.execute('delete from route')
+    # bc.cur.execute('delete from city')
+
+    #bc.return_from_backup(deleteOrder)
+    # print(deleteOrder.reverse())
+   
+     # Create a folder for storing CSV files
+   
+    #csv_filename = os.path.join(export_folder, f'{table_name}.csv')
+    print(bc.cur.execute("SELECT * FROM bus_seat").fetchall())
+    
+    # print(table_dict.keys())
+    
+    # print(bc.cur.execute("SELECT * FROM voyage").fetchall())
+    # print(bc.cur.execute("SELECT * FROM customer").fetchall())
     pass
+
