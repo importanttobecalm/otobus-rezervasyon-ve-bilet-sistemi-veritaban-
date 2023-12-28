@@ -53,7 +53,8 @@ def login():
 def open_admin_panel():
     customers = bk.get_customer_tableSP()
     buses = bk.bc.cur.execute("SELECT * FROM bus WHERE voyageID IS NULL").fetchall()
-    voyages = bk.bc.cur.execute("SELECT * FROM voyage").fetchall()
+    #voyages = bk.bc.cur.execute("SELECT DISTINCT voyageName FROM voyage").fetchall()
+    voyages = bk.bc.cur.execute("SELECT *  FROM voyage").fetchall()
     routes = bk.get_route_tableSP()
     voyage_routes = bk.get_voyageRouteandVoyage_tableSP()
     tickets = bk.get_ticket_tableSP()

@@ -182,6 +182,7 @@ END;
 """
 
 #------------------------#
+
 createVoyageRouteTriggerSTR = """
 IF NOT EXISTS (SELECT * FROM sys.triggers WHERE name = 'tr_voyage_route_insert')
 BEGIN
@@ -660,10 +661,12 @@ class BusCompanyDB:
         self.cur.commit()
 
 
-    def create_voyage_route(self, voyage_id, route_id):
-        sequence_order = self.cur.execute("SELECT MAX(sequenceOrder) FROM voyage_route WHERE voyageID = ?", (voyage_id,)).fetchone()[0]
-        seq = sequence_order if sequence_order != None else 0
-        self.cur.execute(insertVoyageRoute, (voyage_id, route_id, seq))
+    def create_voyage_route(self, voyage_id, route_id): 
+        voyageWithSameName = self.cur.execute("SELECT voyageID FROM voyage WHERE voyageName = (SELECT voyageName FROM voyage WHERE voyageID = ?)", (voyage_id,)).fetchall()
+        for i in voyageWithSameName:
+            sequence_order = self.cur.execute("SELECT MAX(sequenceOrder) FROM voyage_route WHERE voyageID = ?", (i[0],)).fetchone()[0]
+            seq = sequence_order if sequence_order != None else 0
+            self.cur.execute(insertVoyageRoute, (i[0], route_id, seq))
         self.cur.commit()
 
     #------------------------#
@@ -970,23 +973,24 @@ def create_voyage():
         city1, city2 = city_pair
         
         # Generate voyage date (assuming 1-month frequency)
-        voyage_date_str = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d").split(" ")[0]
+        for i in range(31):
+            voyage_date_str = (datetime.now() + timedelta(days=i)).strftime("%Y-%m-%d").split(" ")[0]
 
-        # Set a fixed start time
-        start_time = f'{random.randint(8, 18):02}:00'
+            # Set a fixed start time
+            start_time = f'{random.randint(8, 18):02}:00'
 
-        # Generate voyage name
-        voyage_name = f"{city1}-{city2}"
+            # Generate voyage name
+            voyage_name = f"{city1}-{city2}"
 
-        # Generate option (assuming '1Month' as in your example)
-        generate_option = '1Month'
+            # Generate option (assuming '1Month' as in your example)
+            generate_option = '1Month'
 
-        # Insert the example voyage
-        insert_example_voyage(voyage_date_str, start_time, voyage_name, generate_option)
+            # Insert the example voyage
+            insert_example_voyage(voyage_date_str, start_time, voyage_name)
 
     
 
-def insert_example_voyage(voyage_date_str, start_time, voyage_name, generate_option):
+def insert_example_voyage(voyage_date_str, start_time, voyage_name):
     # Convert string to datetime
     try:
         voyage_date = datetime.strptime(voyage_date_str, "%Y-%m-%d")
@@ -1001,19 +1005,7 @@ def insert_example_voyage(voyage_date_str, start_time, voyage_name, generate_opt
     """
     print(f"Inserted Voyage:\n{insert_voyage_sql}")
 
-    # Generate long voyages based on the selected option
-    if generate_option != "None":
-        duration = {"1Week": 7, "2Weeks": 14, "1Month": 30}.get(generate_option)
-        if duration:
-            print(f"\nGenerated Long Voyages:")
-            for i in range(duration):
-                current_date = voyage_date + timedelta(days=i)
-                insert_long_voyage_sql = f"""
-                INSERT INTO voyage (voyageDate, startTime, voyageName)
-                VALUES ('{current_date}', '{start_time}', '{voyage_name}')
-                """
-                print(f"{i+1}. {insert_long_voyage_sql}")
-                
+
     bc.cur.execute(insert_voyage_sql)
     bc.cur.commit()
 
@@ -1040,12 +1032,13 @@ cities = ['canakkale', 'Kesan', 'tekirdag', 'Edirne', 'Istanbul']
 
 if __name__ == "__main__":
     # bc.return_from_backup()
-    # get_city(cities)
-    # get_customer_role()
-    # get_admin()
-    # create_voyage()
-    # get_route(cities)
-    # get_price()
+
+
+    get_city(cities)
+    get_customer_role()
+    get_admin()
+    create_voyage()
+    get_route(cities)
+    get_price()
     
-    # bc.cur.commit()
     pass
