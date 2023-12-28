@@ -39,11 +39,14 @@ def login():
         
         user_is_authenticated = bk.login_check(email, password)
         if user_is_authenticated:
+            
             user_name = bk.get_customer_name(email)
-            return set_index_page()
+            if 'customer' == bk.check_customer_role(email):
+                return set_index_page()
+            elif 'admin' == bk.check_customer_role(email):
+                return open_admin_panel()
         else:
             error_message = "Login failed. Please check your information and try again."
-            return open_admin_panel()
             return render_template('giris.html', error_message=error_message, user_is_authenticated=user_is_authenticated, user_name=user_name)
 
 
@@ -95,6 +98,11 @@ def delete_customer(tc):
 @app.route('/delete_ticket/<ticketID>', methods=['POST'])
 def delete_ticket(ticketID):
     bk.delete_ticket_with_ticketID(ticketID)
+    return open_admin_panel()
+
+@app.route('/delete_voyageRoute/<voyageRouteID>', methods=['POST'])
+def delete_voyageRoute(voyageRouteID):
+    bk.delete_voyageRoute_with_voyageRouteID(voyageRouteID)
     return open_admin_panel()
 
 @app.route('/assign_bus_to_voyage', methods=['POST'])

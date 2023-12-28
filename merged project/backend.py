@@ -93,6 +93,8 @@ def set_reserved_seat(seatNo):
         for seat in reservedSeats:
             bc.set_reserved_seat(seq, seat, selectedBus)
 
+def check_customer_role(email):
+    return bc.check_customer_role(email)
 
 def assign_bus_to_voyage(bus_id, voyage_id):
     bc.sp_assign_voyage_to_bus_and_create_seats(bus_id, voyage_id)
@@ -174,6 +176,9 @@ def delete_customer_with_tc(tc):
 def delete_ticket_with_ticketID(ticketID):
     bc.delete_ticket_with_ticketID(ticketID)
 
+
+def delete_voyageRoute_with_voyageRouteID(voyageRouteID):
+    bc.delete_voyageRoute_with_voyageRouteID(voyageRouteID)
 
 def get_tables_pdf(table_name):
     query = f'SELECT * FROM {table_name}'

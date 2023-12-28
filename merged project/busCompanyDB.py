@@ -1,10 +1,12 @@
 import pyodbc
 import pandas as pd
 import os
+import random
 from datetime import datetime, timedelta
 
 
-connStr = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER=lucimark0;DATABASE=BUSCOMPANYDBbk;Trusted_Connection=yes'
+
+connStr = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER=lucimark0;DATABASE=BUSCOMPANYDB1;Trusted_Connection=yes'
 # Yukarıdaki satırı kendi veritabanı bilgilerinizle doldurmalısınız.
 
 createCustomerRoleTableSTR = """
@@ -23,8 +25,8 @@ BEGIN
       tc VARCHAR(11) PRIMARY KEY,
       name VARCHAR(50),
       surname VARCHAR(50),
-      email VARCHAR(50),
-      password VARCHAR(50),
+      email VARCHAR(255),
+      password VARCHAR(255),
       phone VARCHAR(11),
       customerRoleID tinyint FOREIGN KEY REFERENCES customer_role(customerRoleID) ON DELETE SET NULL
   )
@@ -397,6 +399,7 @@ BEGIN
         JOIN route r ON vr.routeID = r.routeID
         JOIN city dep ON r.departure = dep.cityID
         JOIN city arr ON r.arrival = arr.cityID
+        ORDER BY v.voyageID, vr.sequenceOrder;
     END
     ');
 END
@@ -683,6 +686,9 @@ class BusCompanyDB:
 
     def check_login(self, email, password):
         return self.cur.execute(checkLogin, (email, password)).fetchone()
+    
+    def check_customer_role(self, email):
+        return self.cur.execute("SELECT customerRole FROM customer_role WHERE customerRoleID = (SELECT customerRoleID FROM customer WHERE email = ?)", (email,)).fetchone()[0]
 
     #------------------------#
 
@@ -904,45 +910,30 @@ class BusCompanyDB:
     def delete_ticket_with_ticketID(self, ticket_id):
         self.cur.execute("DELETE FROM ticket WHERE ticketID = ?", (ticket_id,))
         self.cur.commit()
+    
+    def delete_voyageRoute_with_voyageRouteID(self, voyageRouteID):
+        self.cur.execute("DELETE FROM voyage_route WHERE voyageRouteID = ?", (voyageRouteID,))
+        self.cur.commit()
 
 
 bc = BusCompanyDB()
 bc.cur.commit()
 def get_customer_role():
-    customer_role = 'normal'
+    customer_role = 'customer'
     bc.insert_customer_role(customer_role)
     customer_role = 'admin'
     bc.insert_customer_role(customer_role)
 
 
-def get_customer():
-    tc = 1
-    name = 1
-    surname = 1
-    email = 1
-    password = 1
-    phone = 1
-    customerRoleID = 1
+def get_admin():
+    tc = 0
+    name = 'admin'
+    surname = 0
+    email = 0
+    password = 'admin123'
+    phone = 0
+    customerRoleID = 2
     bc.insert_customer(tc, name, surname, email, password, phone, customerRoleID)
-
-def get_route():
-    for i in range(1,5):
-        departure = i
-        departurePlatform = i
-        arrival = i+1
-        arrivalPlatform = i+1
-        estTime = i+1
-        bc.insert_route(departure, departurePlatform, arrival, arrivalPlatform, estTime)
-
-def get_voyage():
-    voyageDate = datetime.strptime(input("date seperated with - : "), '%d-%m-%Y').date()
-    startTime = input("Enter start time: ")
-    bc.insert_voyage(voyageDate, startTime)
-
-def get_voyage_route():
-    voyageID = input("Enter voyage ID: ")
-    routeID = input("Enter route ID: ")
-    bc.insert_voyage_route(voyageID, routeID)
 
 def get_bus():
     voyageRouteID = None
@@ -952,25 +943,50 @@ def get_bus():
     bc.insert_bus(voyageRouteID, plate, platformno, currentCity)
 
 def get_price():
-    firstCity = 1
-    secondCity = 2
-    price = 200
-    bc.insert_price(firstCity, secondCity, price)
+    insert_statements = []
+    for i in range(len(cities)):
+        for j in range(i + 1, len(cities)):
+            random_price = random.randint(2, 20) * 50  # Random value in the range 100 to 1000 with increment of 50
+            insert_statement = f"INSERT INTO price (firstCity, secondCity, price) VALUES ({i + 1}, {j + 1}, {random_price:.2f});"
+            insert_statements.append(insert_statement)
 
-def get_ticket():
-    busID = input("Enter bus ID: ")
-    priceID = input("Enter price ID: ")
-    seat = input("Enter seat: ")
-    ticketDate = input("Enter ticket date: ")
-    bc.create_ticket(busID, priceID, seat, ticketDate)
+    # Print the insert statements
+    for statement in insert_statements:
+        bc.cur.execute(statement)
+
+    bc.cur.commit()
 
 
 def create_voyage():
-    voyage_date_str = datetime.now().strftime("%Y-%m-%d").split(" ")[0]
-    start_time = '08:00'
-    voyage_name = input("Enter Voyage Name: ")
-    generate_option = 'None'
+    voyage_city_pairs = [
+    ('canakkale', 'istanbul'),
+    ('kesan', 'edirne'),
+    ('tekirdag', 'canakkale'),
+    ('istanbul', 'edirne'),
+    ('kesan', 'istanbul'),
+]
+    for city_pair in voyage_city_pairs:
+        # Get cities for the voyage
+        city1, city2 = city_pair
+        
+        # Generate voyage date (assuming 1-month frequency)
+        voyage_date_str = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d").split(" ")[0]
 
+        # Set a fixed start time
+        start_time = f'{random.randint(8, 18):02}:00'
+
+        # Generate voyage name
+        voyage_name = f"{city1}-{city2}"
+
+        # Generate option (assuming '1Month' as in your example)
+        generate_option = '1Month'
+
+        # Insert the example voyage
+        insert_example_voyage(voyage_date_str, start_time, voyage_name, generate_option)
+
+    
+
+def insert_example_voyage(voyage_date_str, start_time, voyage_name, generate_option):
     # Convert string to datetime
     try:
         voyage_date = datetime.strptime(voyage_date_str, "%Y-%m-%d")
@@ -997,65 +1013,39 @@ def create_voyage():
                 VALUES ('{current_date}', '{start_time}', '{voyage_name}')
                 """
                 print(f"{i+1}. {insert_long_voyage_sql}")
+                
     bc.cur.execute(insert_voyage_sql)
-
-def create_voyage_route():
-    for i in range(1,5):
-        voyage_id = 1
-        route_id = i
-        sequence_order = bc.cur.execute("SELECT MAX(sequenceOrder) FROM voyage_route WHERE voyageID = ?", (voyage_id,)).fetchone()[0]
-        seq = sequence_order if sequence_order != None else 0
-        bc.cur.execute(insertVoyageRoute, (voyage_id, route_id, seq))
-        bc.cur.commit()
+    bc.cur.commit()
 
 
-def get_city(city_names):
-    for city_name in city_names:
-        bc.insert_city(city_name)
+def get_city(cities):
+    for city in cities:
+        bc.insert_city(city)
+    bc.cur.commit()
+
+def get_route(citiess):
+    for city in range(len(citiess)-1):
+        for city2 in range(city+1, len(citiess)):
+            bc.insert_route(city+1, 1, city2+1, 1, random.randrange(60, 210 + 1, 15))
+    
+    # reverse
+    for city in range(len(citiess)-1):
+        for city2 in range(city+1, len(citiess)):
+            bc.insert_route(city2+1, 1, city+1, 1, random.randrange(60, 210 + 1, 15))
+
+
+
+cities = ['canakkale', 'Kesan', 'tekirdag', 'Edirne', 'Istanbul']
 
 
 if __name__ == "__main__":
+    # bc.return_from_backup()
+    # get_city(cities)
     # get_customer_role()
-    # get_customer()
-    # city_names_to_insert = ["City1", "City2", "City3", "City4", "City5"]
-    # get_city(city_names_to_insert)
-    # get_route()
-    # get_price()
-
+    # get_admin()
     # create_voyage()
-    # create_voyage_route()
-
-    # bc.add_bus('1')
-    # bc.sp_assign_voyage_to_bus_and_create_seats(1, 1)
-
-
-
+    # get_route(cities)
+    # get_price()
     
-
-
-    # return backup delete all tables
-    # bc.cur.execute('delete from ticket')
-    # bc.cur.execute('delete from bus_seat')
-    # bc.cur.execute('delete from bus')
-    # bc.cur.execute('delete from customer')
-    # bc.cur.execute('delete from customer_role')
-    # bc.cur.execute('delete from voyage_route')
-    # bc.cur.execute('delete from voyage')
-    # bc.cur.execute('delete from price')
-    # bc.cur.execute('delete from route')
-    # bc.cur.execute('delete from city')
-
-    #
-    # print(deleteOrder.reverse())
-   
-     # Create a folder for storing CSV files
-   
-    #csv_filename = os.path.join(export_folder, f'{table_name}.csv')
-    print(bc.cur.execute("SELECT * FROM bus").fetchall())
-    
-    # print(table_dict.keys())
-    
-    # print(bc.cur.execute("SELECT * FROM voyage").fetchall())
-    # print(bc.cur.execute("SELECT * FROM customer").fetchall())
+    # bc.cur.commit()
     pass
-

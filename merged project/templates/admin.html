@@ -329,6 +329,12 @@
                     <td>{{ voyage_route[5] }}</td>
                     <td>{{ voyage_route[3] }}</td>
                     <td>{{ voyage_route[6] }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('delete_voyageRoute', voyageRouteID=voyage_route[0]) }}">
+                            <button type="submit">Delete</button>
+                        </form>
+                    </td>
+                </tr>
                 </tr>
                 {% endfor %}
             </tbody>
