@@ -474,12 +474,29 @@ checkLogin = """SELECT * FROM customer WHERE email = ? AND password = ?"""
 #------------------------#
 
 
+table_dict = {
+        "customer_role": ["customerRole"],
+        "customer": ["tc", "name", "surname", "email", "password", "phone", "customerRoleID"],
+        "city": ["cityName"],
+        "route": ["departure", "departurePlatform", "arrival", "arrivalPlatform", "estTime"],
+        "voyage": ["voyageDate", "startTime", "voyageName"],
+        "voyage_route": ["voyageID", "routeID", "sequenceOrder"],
+        "bus": ["voyageID", "plate", "seat", "platformno", "currentvoyageRoute"],
+        "bus_seat": ["busID", "seat", "reservedvoyageRoute"],
+        "price": ["firstCity", "secondCity", "price"],
+        "ticket": ["tc", "busID", "priceID", "gender", "seat", "ticketDate"],
+        "DeletedCustomerLog": ["tc", "name", "surname", "email", "password", "phone", "customerRoleID", "deletionDate"],
+        "DeletedTicketLog": ["ticketID", "tc", "busID", "priceID", "gender", "seat", "ticketDate"]
+        }
+    
+    
 
+deleteOrder = ["ticket", "bus_seat", "bus", "voyage_route", "voyage", "route", "price", "city", "customer", "customer_role"]
 
 
 class BusCompanyDB:
     def __init__(self) -> None:
-        self.con = pyodbc.connect(connStr)
+        self.con = pyodbc.connect(connStr, autocommit=True)
         self.cur = self.con.cursor()
         self.create_tables()
         self.create_triggers()
@@ -551,7 +568,7 @@ class BusCompanyDB:
         # Export the DataFrame to a CSV file
         df.to_csv(csv_path, index=False)
 
-    def return_from_backup(self, table_name):
+    def clean_tables(self, table_name):
         for name in table_name:
             clear_query = f"DROP TABLE {name}"
             self.cur.execute(clear_query)
@@ -567,7 +584,6 @@ class BusCompanyDB:
         # Read CSV file into DataFrame
         csv_path = os.path.join('ExportedData', f"{table_name}_table.csv")
         df = pd.read_csv(csv_path)
-        print(table_name)
         # Insert data into the table
         for _, row in df.iterrows():
             # Replace empty strings with None
@@ -593,6 +609,14 @@ class BusCompanyDB:
         else:
             return str(value)
     #------------------------#
+        
+    def take_backup(self):
+        self.export_all_tables_to_csv(table_dict)
+    
+    def return_from_backup(self):
+        self.clean_tables(deleteOrder)
+
+    #------------------------#    
     def insert_customer_role(self, customer_role):
         self.cur.execute(insertCustomerRole, (customer_role))
         bc.cur.commit()
@@ -629,11 +653,6 @@ class BusCompanyDB:
         
     def create_ticket(self, tc, busID, priceID, seat, ticketDate ):
         ticketDate = datetime.strptime(ticketDate, '%Y-%m-%d').date()
-        print(tc)
-        print(busID)
-        print(priceID)
-        print(seat)
-        print(ticketDate)
         self.cur.execute(createTicket, (tc ,busID, priceID,'M', seat, ticketDate))
         self.cur.commit()
 
@@ -894,7 +913,6 @@ def get_customer_role():
     bc.insert_customer_role(customer_role)
     customer_role = 'admin'
     bc.insert_customer_role(customer_role)
-    bc.cur.commit()
 
 
 def get_customer():
@@ -906,7 +924,6 @@ def get_customer():
     phone = 1
     customerRoleID = 1
     bc.insert_customer(tc, name, surname, email, password, phone, customerRoleID)
-    bc.cur.commit()
 
 def get_route():
     for i in range(1,5):
@@ -916,19 +933,16 @@ def get_route():
         arrivalPlatform = i+1
         estTime = i+1
         bc.insert_route(departure, departurePlatform, arrival, arrivalPlatform, estTime)
-    bc.cur.commit()
 
 def get_voyage():
     voyageDate = datetime.strptime(input("date seperated with - : "), '%d-%m-%Y').date()
     startTime = input("Enter start time: ")
     bc.insert_voyage(voyageDate, startTime)
-    bc.cur.commit()
 
 def get_voyage_route():
     voyageID = input("Enter voyage ID: ")
     routeID = input("Enter route ID: ")
     bc.insert_voyage_route(voyageID, routeID)
-    bc.cur.commit()
 
 def get_bus():
     voyageRouteID = None
@@ -936,14 +950,12 @@ def get_bus():
     platformno = '1'
     currentCity = '1'
     bc.insert_bus(voyageRouteID, plate, platformno, currentCity)
-    bc.cur.commit()
 
 def get_price():
     firstCity = 1
     secondCity = 2
     price = 200
     bc.insert_price(firstCity, secondCity, price)
-    bc.cur.commit()
 
 def get_ticket():
     busID = input("Enter bus ID: ")
@@ -951,7 +963,6 @@ def get_ticket():
     seat = input("Enter seat: ")
     ticketDate = input("Enter ticket date: ")
     bc.create_ticket(busID, priceID, seat, ticketDate)
-    bc.cur.commit()
 
 
 def create_voyage():
@@ -987,7 +998,6 @@ def create_voyage():
                 """
                 print(f"{i+1}. {insert_long_voyage_sql}")
     bc.cur.execute(insert_voyage_sql)
-    bc.cur.commit()
 
 def create_voyage_route():
     for i in range(1,5):
@@ -1002,7 +1012,6 @@ def create_voyage_route():
 def get_city(city_names):
     for city_name in city_names:
         bc.insert_city(city_name)
-        bc.cur.commit()
 
 
 if __name__ == "__main__":
@@ -1020,41 +1029,10 @@ if __name__ == "__main__":
     # bc.sp_assign_voyage_to_bus_and_create_seats(1, 1)
 
 
-    # bc.cur.execute("delete from customer where tc = '2'")
-    # bc.cur.commit()
-    # print(bc.cur.execute("SELECT * FROM ticket").fetchall())
-    # print(bc.cur.execute("SELECT * FROM customer").fetchall())
-    # print(bc.cur.execute("SELECT * FROM DeletedCustomerLog").fetchall())
-    # print(bc.cur.execute("SELECT * FROM DeletedTicketLog").fetchall())
-    # tc_value = '1'  # Replace this with the actual value
-    # bc.cur.execute('update bus set voyageID = 1 where busID = 3')
-    # bc.cur.commit()
-    #bc.take_backup()
-    # get_customer()
-    # print(bc.cur.execute("SELECT * FROM customer").fetchall())
 
-    # bc.take_backup()
-    #bc.return_to_backup()
-    # backup_command = "BACKUP DATABASE BUSCOMPANYDB TO DISK = 'C:\\Users\gkaan\OneDrive\Masaüstü\BackupFolder\Backup.bak'"
-
-    table_dict = {
-        "customer_role": ["customerRole"],
-        "customer": ["tc", "name", "surname", "email", "password", "phone", "customerRoleID"],
-        "city": ["cityName"],
-        "route": ["departure", "departurePlatform", "arrival", "arrivalPlatform", "estTime"],
-        "voyage": ["voyageDate", "startTime", "voyageName"],
-        "voyage_route": ["voyageID", "routeID", "sequenceOrder"],
-        "bus": ["voyageID", "plate", "seat", "platformno", "currentvoyageRoute"],
-        "bus_seat": ["busID", "seat", "reservedvoyageRoute"],
-        "price": ["firstCity", "secondCity", "price"],
-        "ticket": ["tc", "busID", "priceID", "gender", "seat", "ticketDate"],
-        "DeletedCustomerLog": ["tc", "name", "surname", "email", "password", "phone", "customerRoleID", "deletionDate"],
-        "DeletedTicketLog": ["ticketID", "tc", "busID", "priceID", "gender", "seat", "ticketDate"]
-        }
     
-    bc.export_all_tables_to_csv(table_dict)
 
-    deleteOrder = ["ticket", "bus_seat", "bus", "voyage_route", "voyage", "route", "price", "city", "customer", "customer_role"]
+
     # return backup delete all tables
     # bc.cur.execute('delete from ticket')
     # bc.cur.execute('delete from bus_seat')
@@ -1067,13 +1045,13 @@ if __name__ == "__main__":
     # bc.cur.execute('delete from route')
     # bc.cur.execute('delete from city')
 
-    #bc.return_from_backup(deleteOrder)
+    #
     # print(deleteOrder.reverse())
    
      # Create a folder for storing CSV files
    
     #csv_filename = os.path.join(export_folder, f'{table_name}.csv')
-    print(bc.cur.execute("SELECT * FROM bus_seat").fetchall())
+    print(bc.cur.execute("SELECT * FROM bus").fetchall())
     
     # print(table_dict.keys())
     

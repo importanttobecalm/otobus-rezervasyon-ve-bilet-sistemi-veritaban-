@@ -19,7 +19,6 @@ def register_check(tc, name, surname, email, password, phone):
         return False
     else:
         bc.insert_customer(tc, name, surname, email, password, phone)
-        bc.cur.commit()
         return True
 
 def login_check(email, password):
@@ -164,6 +163,7 @@ def delete_ticket_with_ticket_id(ticket_id):
 
 def insert_customer(tc, name, surname, email, password, phone):
     bc.insert_customer(tc, name, surname, email, password, phone)
+    
 
 def create_ticket_admin(tc, bus_id, price_id, seat_no, ticketDate):
     bc.create_ticket(tc, bus_id, price_id, seat_no, ticketDate)
@@ -184,7 +184,7 @@ def get_tables_pdf(table_name):
 
     # Create PDF
     pdf = canvas.Canvas(table_name + '.pdf')
-    pdf.drawString(100, 800, "Your PDF Report Title")
+    pdf.drawString(100, 800, "PDF Report")
 
     # Add column names
     for i, column in enumerate(columns):
@@ -224,21 +224,12 @@ def generate_pdf_report(query, output_filename):
 
     pdf.save()
 
-# Generate PDF report
-generate_pdf_report(query, 'output_report.pdf')
 
+def take_backup():
+    bc.take_backup()
 
-
-
-
-
-
-
-
-
-
-
-
+def return_from_backup():
+    bc.return_from_backup()
 
 
 

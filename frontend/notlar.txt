@@ -1,7 +1,0 @@
-admin panele ->
-otobüs listesi olacak sefer listesi ile yan yana
-üst tarafta iki input olacak otobus no ile sefer no girilip birbirinie bağdaştırılacak
-
-otobüse biniş tarihi eklenecek biletlere
-
-kayıt ol inputları githubda dbden bakılacak

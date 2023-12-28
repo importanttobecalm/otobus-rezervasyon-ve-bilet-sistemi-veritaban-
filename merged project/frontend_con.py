@@ -203,13 +203,15 @@ def cancel_ticket():
         return set_index_page()
 
 
+@app.route('/take_backup', methods=['POST'])
+def take_backup():
+    bk.take_backup()
+    return open_admin_panel()
 
-
-
-
-
-
-
+@app.route('/restore_backup', methods=['POST'])
+def restore_backup():
+    bk.return_from_backup()
+    return open_admin_panel()
 
 def set_index_page():
     locations = bk.get_locations()

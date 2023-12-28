@@ -61,6 +61,14 @@
 
     <div id="main-panel" class="main-panel">
         <h1>Admin Panel</h1>
+    
+        <form method="post" action="{{ url_for('take_backup') }}">
+            <button type="submit">Take Backup</button>
+        </form>
+    
+        <form method="post" action="{{ url_for('restore_backup') }}">
+            <button type="submit">Restore Backup</button>
+        </form>
     </div>
 
     <div id="action1-panel" class="action-panel">
